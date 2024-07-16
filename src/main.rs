@@ -2,6 +2,7 @@ pub mod tokenize;
 pub mod builtins;
 
 use std::io::{self, Write};
+use std::process::Command;
 
 fn main() -> Result<(), std::io::Error> {
     loop {
@@ -29,7 +30,22 @@ fn main() -> Result<(), std::io::Error> {
                 Err(e) => eprintln!("{}", e),
             }
         } else {
-            println!("{:?}", tokenized);
+            // Spawn the command
+            let mut child = match Command::new(tokenized.cmd())
+                .args(tokenized.args())
+                .spawn() {
+                    Ok(child) => child,
+                    Err(_) => {
+                        eprintln!("Failed to execute command");
+                        continue;
+                    }
+                };
+            
+            // Wait for the command to finish
+            match child.wait() {
+                Ok(_) => {}
+                Err(e) => eprintln!("{}", e),
+            }
         }
     }
 }
