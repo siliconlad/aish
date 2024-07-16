@@ -1,4 +1,5 @@
 pub mod tokenize;
+pub mod builtins;
 
 use std::io::{self, Write};
 
@@ -11,6 +12,14 @@ fn main() -> Result<(), std::io::Error> {
         io::stdin().read_line(&mut buffer)?;
 
         let tokenized = tokenize::tokenize(&mut buffer);
-        println!("{:?}", tokenized);
+        
+        if tokenized.cmd() == "cd" {
+            match builtins::cd(tokenized.args()) {
+                Ok(_) => {}
+                Err(e) => eprintln!("{}", e),
+            }
+        } else {
+            println!("{:?}", tokenized);
+        }
     }
 }
