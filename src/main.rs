@@ -23,6 +23,11 @@ fn main() -> Result<(), std::io::Error> {
                 Ok(pwd) => println!("{}", pwd),
                 Err(e) => eprintln!("{}", e),
             }
+        } else if tokenized.cmd() == "exit" {
+            match builtins::exit() {
+                Ok(_) => continue,
+                Err(e) => eprintln!("{}", e),
+            }
         } else {
             println!("{:?}", tokenized);
         }

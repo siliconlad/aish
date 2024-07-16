@@ -18,3 +18,7 @@ pub fn pwd() -> Result<String, Box<dyn Error>> {
     let path = std::env::current_dir()?;
     Ok(path.display().to_string())
 }
+
+pub fn exit() -> Result<(), Box<dyn Error>> {
+  std::process::exit(0);
+}
