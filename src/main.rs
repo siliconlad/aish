@@ -1,3 +1,5 @@
+pub mod tokenize;
+
 use std::io::{self, Write};
 
 fn main() -> Result<(), std::io::Error> {
@@ -7,5 +9,8 @@ fn main() -> Result<(), std::io::Error> {
 
         let mut buffer = String::new();
         io::stdin().read_line(&mut buffer)?;
+
+        let tokenized = tokenize::tokenize(&mut buffer);
+        println!("{:?}", tokenized);
     }
 }
