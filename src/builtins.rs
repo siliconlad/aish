@@ -22,3 +22,8 @@ pub fn pwd() -> Result<String, Box<dyn Error>> {
 pub fn exit() -> Result<(), Box<dyn Error>> {
   std::process::exit(0);
 }
+
+pub fn echo(msg: Vec<&str>) -> Result<(), Box<dyn Error>> {
+    println!("{}", msg.join(" "));
+    Ok(())
+}
