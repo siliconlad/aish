@@ -29,6 +29,11 @@ fn main() -> Result<(), std::io::Error> {
                 Ok(_) => continue,
                 Err(e) => eprintln!("{}", e),
             }
+        } else if tokenized.cmd() == "echo" {
+            match builtins::echo(tokenized.args()) {
+                Ok(_) => {}
+                Err(e) => eprintln!("{}", e),
+            }
         } else {
             // Spawn the command
             let mut child = match Command::new(tokenized.cmd())
