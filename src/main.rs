@@ -18,6 +18,11 @@ fn main() -> Result<(), std::io::Error> {
                 Ok(_) => {}
                 Err(e) => eprintln!("{}", e),
             }
+        } else if tokenized.cmd() == "pwd" {
+            match builtins::pwd() {
+                Ok(pwd) => println!("{}", pwd),
+                Err(e) => eprintln!("{}", e),
+            }
         } else {
             println!("{:?}", tokenized);
         }

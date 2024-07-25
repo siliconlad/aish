@@ -13,3 +13,8 @@ pub fn cd(args: Vec<&str>) -> Result<(), Box<dyn Error>> {
     std::env::set_current_dir(path)?;
     Ok(())
 }
+
+pub fn pwd() -> Result<String, Box<dyn Error>> {
+    let path = std::env::current_dir()?;
+    Ok(path.display().to_string())
+}
