@@ -1,6 +1,12 @@
 use std::error::Error;
+use std::collections::HashMap;
+use std::sync::Mutex;
 
-const BUILTINS: &[&str] = &["cd", "pwd", "exit", "echo"];
+lazy_static! {
+    static ref ALIASES: Mutex<HashMap<String, String>> = Mutex::new(HashMap::new());
+}
+
+const BUILTINS: &[&str] = &["cd", "pwd", "exit", "echo", "alias"];
 
 pub fn is_builtin(cmd: &str) -> bool {
     BUILTINS.contains(&cmd)
@@ -12,6 +18,7 @@ pub fn builtin(cmd: &str, args: Vec<&str>) -> Result<String, Box<dyn Error>> {
         "pwd" => pwd(),
         "exit" => exit(),
         "echo" => echo(args),
+        "alias" => alias(args),
         _ => Err(format!("{}: command not found", cmd).into()),
     }
 }
@@ -43,4 +50,33 @@ pub fn exit() -> Result<String, Box<dyn Error>> {
 pub fn echo(msg: Vec<&str>) -> Result<String, Box<dyn Error>> {
     println!("{}", msg.join(" "));
     Ok("".to_string())
+}
+
+pub fn alias(args: Vec<&str>) -> Result<String, Box<dyn Error>> {
+    if args.len() != 1 {
+        return Err("alias: not enough arguments or too many arguments".into());
+    }
+
+    let alias_input = args[0];
+    let parts: Vec<&str> = alias_input.splitn(2, '=').collect();
+
+    if parts.len() != 2 {
+        return Err("alias: invalid format, expected name=value".into());
+    }
+
+    let alias_name = parts[0].to_string();
+    let alias_value = parts[1].to_string();
+
+    ALIASES.lock().unwrap().insert(alias_name, alias_value);
+    Ok("".to_string())
+}
+
+pub fn expand_aliases(input: &str) -> String {
+    let aliases = ALIASES.lock().unwrap();
+    let mut words: Vec<&str> = input.split_whitespace().collect();
+    if let Some(alias) = aliases.get(words[0]) {
+        let alias_words: Vec<&str> = alias.split_whitespace().collect();
+        words.splice(0..1, alias_words);
+    }
+    words.join(" ")
 }
