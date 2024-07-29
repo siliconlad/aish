@@ -1,0 +1,19 @@
+name: aish ci
+
+on:
+  pull_request: {}
+  push:
+    branches: [ main ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint
+    uses: "./.github/workflows/lint.yml"
+
+  test:
+    name: Test
+    uses: "./.github/workflows/test.yml"
