@@ -1,9 +1,9 @@
 pub mod builtins;
 pub mod tokenize;
 
-use std::process::Command;
 use rustyline::error::ReadlineError;
 use rustyline::{DefaultEditor, Result};
+use std::process::Command;
 
 fn main() -> Result<()> {
     let mut rl = DefaultEditor::new()?;
@@ -13,22 +13,18 @@ fn main() -> Result<()> {
             Ok(line) => {
                 let _ = rl.add_history_entry(line.as_str());
                 line
-            },
-            Err(ReadlineError::Interrupted) => {
-                break
-            },
-            Err(ReadlineError::Eof) => {
-                break
-            },
+            }
+            Err(ReadlineError::Interrupted) => break,
+            Err(ReadlineError::Eof) => break,
             Err(err) => {
                 println!("Error: {:?}", err);
-                break
+                break;
             }
         };
 
         // Tokenize input
         let tokenized = tokenize::tokenize(&mut buffer);
-        
+
         // Run command
         if tokenized.cmd() == "cd" {
             match builtins::cd(tokenized.args()) {
