@@ -1,3 +1,6 @@
+use std::fmt::Display;
+
+
 #[derive(Debug)]
 pub struct TokenizedInput {
   tokens: Vec<String>,
@@ -59,4 +62,11 @@ pub fn tokenize(input: &mut String) -> TokenizedInput {
   tokens.retain(|x| !x.is_empty());
 
   TokenizedInput { tokens }
+}
+
+
+impl Display for TokenizedInput {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(f, "{:?}", self.tokens)
+  }
 }
