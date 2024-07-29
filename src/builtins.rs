@@ -1,8 +1,8 @@
 use std::error::Error;
 
-pub fn cd(args: Vec<&str>) -> Result<(), Box<dyn Error>> {
+pub fn cd(args: Vec<String>) -> Result<(), Box<dyn Error>> {
     let home = std::env::var("HOME").unwrap();
-    let path = args.get(0).map_or(home.as_str(), |s| *s);
+    let path = args.get(0).map_or(home.as_str(), |s| s.as_str());
     let mut path = path.to_string();
 
     // Replace ~ with the home directory
@@ -23,7 +23,7 @@ pub fn exit() -> Result<(), Box<dyn Error>> {
   std::process::exit(0);
 }
 
-pub fn echo(msg: Vec<&str>) -> Result<(), Box<dyn Error>> {
+pub fn echo(msg: Vec<String>) -> Result<(), Box<dyn Error>> {
     println!("{}", msg.join(" "));
     Ok(())
 }
