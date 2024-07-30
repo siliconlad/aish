@@ -29,6 +29,7 @@ pub fn clean(input: &mut String) -> &mut String {
 
 pub fn tokenize(input: &mut String) -> TokenizedInput {
     let mut in_quotes = false;
+    let mut in_double_quotes = false;
     let mut current_token = String::new();
     let mut tokens = Vec::<String>::new();
 
@@ -37,10 +38,21 @@ pub fn tokenize(input: &mut String) -> TokenizedInput {
     for c in cleaned.chars() {
         match c {
             '\'' => {
-                in_quotes = !in_quotes;
+                if in_double_quotes {
+                    current_token.push(c);
+                } else {
+                    in_quotes = !in_quotes;
+                }
+            }
+            '"' => {
+                if in_quotes {
+                    current_token.push(c);
+                } else {
+                    in_double_quotes = !in_double_quotes;
+                }
             }
             ' ' => {
-                if in_quotes {
+                if in_quotes || in_double_quotes {
                     current_token.push(c);
                 } else {
                     tokens.push(current_token);
