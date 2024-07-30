@@ -48,24 +48,20 @@ pub fn tokenize(input: &mut String) -> TokenizedInput {
             '\'' => {
                 if in_double_quotes {
                     current_token.push(c);
+                } else if !escaped {
+                    in_quotes = !in_quotes;
                 } else {
-                    if !escaped {
-                        in_quotes = !in_quotes;
-                    } else {
-                        current_token.push(c);
-                    }
+                    current_token.push(c);
                 }
                 escaped = false;
             }
             '"' => {
                 if in_quotes {
                     current_token.push(c);
+                } else if !escaped {
+                    in_double_quotes = !in_double_quotes;
                 } else {
-                    if !escaped {
-                        in_double_quotes = !in_double_quotes;
-                    } else {
-                        current_token.push(c);
-                    }
+                    current_token.push(c);
                 }
                 escaped = false;
             }
