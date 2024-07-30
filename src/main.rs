@@ -3,10 +3,8 @@ pub mod command;
 pub mod pipeline;
 pub mod tokenize;
 
-use std::io::{self, Write};
 use rustyline::error::ReadlineError;
 use rustyline::{DefaultEditor, Result};
-use std::process::Command;
 
 fn main() -> Result<()> {
     let mut rl = DefaultEditor::new()?;

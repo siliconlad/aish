@@ -1,7 +1,7 @@
+use crate::builtins::{builtin, is_builtin};
 use std::error::Error;
 use std::fmt::Display;
-use std::process::{Child, Command, Stdio, ChildStdout};
-use crate::builtins::{builtin, is_builtin};
+use std::process::{Child, ChildStdout, Command, Stdio};
 
 #[derive(Debug)]
 pub struct SimpleCommand {

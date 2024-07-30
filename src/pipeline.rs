@@ -1,13 +1,13 @@
+use crate::command::SimpleCommand;
+use nix::unistd::{dup2, fork, pipe, ForkResult};
 use std::error::Error;
+use std::fs::File;
+use std::io::{BufReader, Read};
 use std::ops::Index;
 use std::os::fd::AsRawFd;
+use std::os::fd::FromRawFd;
 use std::os::fd::IntoRawFd;
 use std::process::ChildStdout;
-use nix::unistd::{fork, ForkResult, pipe, dup2};
-use std::fs::File;
-use std::io::{Read, BufReader};
-use std::os::fd::FromRawFd;
-use crate::command::SimpleCommand;
 
 #[derive(Debug)]
 pub struct Pipeline {
@@ -35,7 +35,9 @@ impl Pipeline {
                         drop(pipe_err_w);
                         if i == self.commands.len() - 1 {
                             let mut output = String::new();
-                            let mut reader = BufReader::new(unsafe { File::from_raw_fd(pipe_out_r.into_raw_fd()) });
+                            let mut reader = BufReader::new(unsafe {
+                                File::from_raw_fd(pipe_out_r.into_raw_fd())
+                            });
                             reader.read_to_string(&mut output)?;
                             println!("{}", output);
                         } else {
@@ -50,7 +52,7 @@ impl Pipeline {
                         command.run_builtin()?;
                         std::process::exit(0);
                     }
-                }    
+                }
             } else {
                 let mut child = command.run_cmd(prev_stdout.take())?;
                 if i == self.commands.len() - 1 {
