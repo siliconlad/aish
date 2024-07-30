@@ -28,60 +28,61 @@ pub fn clean(input: &mut String) -> &mut String {
 }
 
 pub fn tokenize(input: &mut String) -> TokenizedInput {
-  let mut in_quotes = false;
-  let mut in_double_quotes = false;
-  let mut escaped = false;
-  let mut current_token = String::new();
-  let mut tokens = Vec::<String>::new();
-  
-  let cleaned = clean(input);
-  
-  for c in cleaned.chars() {
-    match c {
-      '\\' => {
-        if !in_quotes {
-          escaped = !escaped;
-        } else {
-          current_token.push(c);
+    let mut in_quotes = false;
+    let mut in_double_quotes = false;
+    let mut escaped = false;
+    let mut current_token = String::new();
+    let mut tokens = Vec::<String>::new();
+
+    let cleaned = clean(input);
+
+    for c in cleaned.chars() {
+        match c {
+            '\\' => {
+                if !in_quotes {
+                    escaped = !escaped;
+                } else {
+                    current_token.push(c);
+                }
+            }
+            '\'' => {
+                if in_double_quotes {
+                    current_token.push(c);
+                } else {
+                    if !escaped {
+                        in_quotes = !in_quotes;
+                    } else {
+                        current_token.push(c);
+                    }
+                }
+                escaped = false;
+            }
+            '"' => {
+                if in_quotes {
+                    current_token.push(c);
+                } else {
+                    if !escaped {
+                        in_double_quotes = !in_double_quotes;
+                    } else {
+                        current_token.push(c);
+                    }
+                }
+                escaped = false;
+            }
+            ' ' => {
+                if in_quotes || in_double_quotes || escaped {
+                    current_token.push(c);
+                } else {
+                    tokens.push(current_token);
+                    current_token = String::new();
+                }
+                escaped = false;
+            }
+            _ => {
+                current_token.push(c);
+                escaped = false;
+            }
         }
-      }
-      '\'' => {
-        if in_double_quotes {
-          current_token.push(c);
-        } else {
-          if !escaped {
-            in_quotes = !in_quotes;
-          } else {
-            current_token.push(c);
-          }
-        }
-        escaped = false;
-      }
-      '"' => {
-        if in_quotes {
-          current_token.push(c);
-        } else {
-          if !escaped {
-            in_double_quotes = !in_double_quotes;
-          } else {
-            current_token.push(c);
-          }
-        }
-        escaped = false;
-      }
-      ' ' => {
-        if in_quotes || in_double_quotes || escaped {
-          current_token.push(c);
-        } else {
-          tokens.push(current_token);
-          current_token = String::new();
-        }
-        escaped = false;
-      }
-      _ => {
-        current_token.push(c);
-        escaped = false;
-      }
     }
     // Add last token
     tokens.push(current_token);
