@@ -1,9 +1,6 @@
 use std::error::Error;
 use std::fmt::Display;
-use std::process::Child;
-use std::process::Command;
-use std::process::Stdio;
-
+use std::process::{Child, Command, Stdio, ChildStdout};
 use crate::builtins::{builtin, is_builtin};
 
 #[derive(Debug)]
@@ -23,6 +20,10 @@ impl SimpleCommand {
         })
     }
 
+    pub fn is_builtin(&self) -> bool {
+        self.builtin
+    }
+
     pub fn cmd(&self) -> &String {
         &self.tokens[0]
     }
@@ -31,11 +32,20 @@ impl SimpleCommand {
         self.tokens[1..].to_vec()
     }
 
-    pub fn run(&self, stdin: Option<Stdio>) -> Result<Child, Box<dyn Error>> {
+    pub fn run_builtin(&self) -> Result<(), Box<dyn Error>> {
+        builtin(&self.tokens[0], self.tokens[1..].to_vec())?;
+        Ok(())
+    }
+
+    pub fn run_cmd(&self, stdin: Option<ChildStdout>) -> Result<Child, Box<dyn Error>> {
+        let input = match stdin {
+            Some(input) => Stdio::from(input),
+            None => Stdio::inherit(),
+        };
         // Spawn the command
         let child = match Command::new(self.cmd())
             .args(self.args())
-            .stdin(stdin.unwrap_or(Stdio::inherit()))
+            .stdin(input)
             .stdout(Stdio::piped())
             .spawn()
         {
@@ -45,6 +55,26 @@ impl SimpleCommand {
 
         Ok(child)
     }
+
+    // pub fn run(&self, stdin: Option<Stdio>) -> Result<(), Box<dyn Error>> {
+    //     // Spawn the command
+    //     if self.builtin {
+    //         builtin(&self.tokens[0], self.tokens[1..].to_vec())?;
+    //     }
+    //     else {
+    //         let child = match Command::new(self.cmd())
+    //             .args(self.args())
+    //             .stdin(stdin.unwrap_or(Stdio::inherit()))
+    //             .stdout(Stdio::piped())
+    //             .spawn()
+    //         {
+    //             Ok(child) => child,
+    //             Err(e) => return Err(e.into()),
+    //         };
+    //     }
+
+    //     Ok(())
+    // }
 }
 
 impl Display for SimpleCommand {
