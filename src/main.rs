@@ -1,5 +1,5 @@
-pub mod tokenize;
 pub mod builtins;
+pub mod tokenize;
 
 use std::io::{self, Write};
 use std::process::Command;
@@ -13,7 +13,7 @@ fn main() -> Result<(), std::io::Error> {
         io::stdin().read_line(&mut buffer)?;
 
         let tokenized = tokenize::tokenize(&mut buffer);
-        
+
         if tokenized.cmd() == "cd" {
             match builtins::cd(tokenized.args()) {
                 Ok(_) => {}
@@ -36,16 +36,14 @@ fn main() -> Result<(), std::io::Error> {
             }
         } else {
             // Spawn the command
-            let mut child = match Command::new(tokenized.cmd())
-                .args(tokenized.args())
-                .spawn() {
-                    Ok(child) => child,
-                    Err(_) => {
-                        eprintln!("Failed to execute command");
-                        continue;
-                    }
-                };
-            
+            let mut child = match Command::new(tokenized.cmd()).args(tokenized.args()).spawn() {
+                Ok(child) => child,
+                Err(_) => {
+                    eprintln!("Failed to execute command");
+                    continue;
+                }
+            };
+
             // Wait for the command to finish
             match child.wait() {
                 Ok(_) => {}
