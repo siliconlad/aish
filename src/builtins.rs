@@ -6,7 +6,7 @@ pub fn is_builtin(cmd: &str) -> bool {
     BUILTINS.contains(&cmd)
 }
 
-pub fn builtin(cmd: &str, args: Vec<String>) -> Result<String, Box<dyn Error>> {
+pub fn builtin(cmd: &str, args: Vec<&str>) -> Result<String, Box<dyn Error>> {
     match cmd {
         "cd" => cd(args),
         "pwd" => pwd(),
@@ -16,9 +16,9 @@ pub fn builtin(cmd: &str, args: Vec<String>) -> Result<String, Box<dyn Error>> {
     }
 }
 
-pub fn cd(args: Vec<String>) -> Result<String, Box<dyn Error>> {
+pub fn cd(args: Vec<&str>) -> Result<String, Box<dyn Error>> {
     let home = std::env::var("HOME").unwrap();
-    let path = args.first().map_or(home.as_str(), |s| s.as_str());
+    let path = args.first().map_or(home.as_str(), |s| s);
     let mut path = path.to_string();
 
     // Replace ~ with the home directory
@@ -32,14 +32,15 @@ pub fn cd(args: Vec<String>) -> Result<String, Box<dyn Error>> {
 
 pub fn pwd() -> Result<String, Box<dyn Error>> {
     let path = std::env::current_dir()?;
-    Ok(path.display().to_string())
+    println!("{}", path.display());
+    Ok("".to_string())
 }
 
 pub fn exit() -> Result<String, Box<dyn Error>> {
     std::process::exit(0);
 }
 
-pub fn echo(msg: Vec<String>) -> Result<String, Box<dyn Error>> {
+pub fn echo(msg: Vec<&str>) -> Result<String, Box<dyn Error>> {
     println!("{}", msg.join(" "));
     Ok("".to_string())
 }

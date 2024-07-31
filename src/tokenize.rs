@@ -1,7 +1,8 @@
 use std::error::Error;
 
-use crate::command::SimpleCommand;
+use crate::command::{cmd, runnable};
 use crate::pipeline::Pipeline;
+use crate::traits::{Runnable, ShellCommand};
 
 pub fn clean(input: &mut String) -> &mut String {
     *input = input.trim().to_string();
@@ -15,13 +16,14 @@ pub fn clean(input: &mut String) -> &mut String {
     input
 }
 
-pub fn tokenize(input: &mut String) -> Result<Pipeline, Box<dyn Error>> {
+pub fn tokenize(input: &mut String) -> Result<Box<dyn Runnable>, Box<dyn Error>> {
     let mut in_quotes = false;
     let mut in_double_quotes = false;
+    let mut in_pipeline = false;
     let mut escaped = false;
     let mut current_token = String::new();
     let mut tokens = Vec::<String>::new();
-    let mut commands = Vec::<SimpleCommand>::new();
+    let mut commands = Vec::<Box<dyn ShellCommand>>::new();
 
     let cleaned = clean(input);
 
@@ -29,8 +31,9 @@ pub fn tokenize(input: &mut String) -> Result<Pipeline, Box<dyn Error>> {
         match c {
             '|' => {
                 tokens.retain(|x| !x.is_empty());
-                commands.push(SimpleCommand::new(tokens)?);
+                commands.push(cmd(tokens)?);
                 tokens = Vec::<String>::new();
+                in_pipeline = true;
             }
             '\\' => {
                 if !in_quotes {
@@ -77,7 +80,12 @@ pub fn tokenize(input: &mut String) -> Result<Pipeline, Box<dyn Error>> {
     // Add last token
     tokens.push(current_token);
     tokens.retain(|x| !x.is_empty());
-    commands.push(SimpleCommand::new(tokens)?);
 
-    Pipeline::new(commands)
+    // Return appropriate type
+    if in_pipeline {
+        commands.push(cmd(tokens)?);
+        Ok(Box::new(Pipeline::new(commands)?))
+    } else {
+        Ok(runnable(tokens)?)
+    }
 }

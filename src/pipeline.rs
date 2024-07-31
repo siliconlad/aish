@@ -1,66 +1,40 @@
-use crate::command::SimpleCommand;
-use nix::unistd::{dup2, fork, pipe, ForkResult};
+use crate::traits::{Runnable, ShellCommand};
 use std::error::Error;
 use std::fs::File;
 use std::io::{BufReader, Read};
 use std::ops::Index;
-use std::os::fd::AsRawFd;
 use std::os::fd::FromRawFd;
 use std::os::fd::IntoRawFd;
 use std::process::ChildStdout;
 
-#[derive(Debug)]
 pub struct Pipeline {
-    commands: Vec<SimpleCommand>,
+    commands: Vec<Box<dyn ShellCommand>>,
 }
 
 impl Pipeline {
-    pub fn new(commands: Vec<SimpleCommand>) -> Result<Pipeline, Box<dyn Error>> {
+    pub fn new(commands: Vec<Box<dyn ShellCommand>>) -> Result<Pipeline, Box<dyn Error>> {
         if commands.is_empty() {
             return Err("Commands cannot be empty".into());
         }
         Ok(Pipeline { commands })
     }
+}
 
-    pub fn run(&self) -> Result<String, Box<dyn Error>> {
+impl Runnable for Pipeline {
+    fn run(&self) -> Result<String, Box<dyn Error>> {
         let mut prev_stdout: Option<ChildStdout> = None;
         for (i, command) in self.commands.iter().enumerate() {
-            if command.is_builtin() {
-                let (pipe_out_r, pipe_out_w) = pipe()?;
-                let (pipe_err_r, pipe_err_w) = pipe()?;
+            prev_stdout = Some(command.pipe(prev_stdout.take())?);
 
-                match unsafe { fork() }? {
-                    ForkResult::Parent { child: _ } => {
-                        drop(pipe_out_w);
-                        drop(pipe_err_w);
-                        if i == self.commands.len() - 1 {
-                            let mut output = String::new();
-                            let mut reader = BufReader::new(unsafe {
-                                File::from_raw_fd(pipe_out_r.into_raw_fd())
-                            });
-                            reader.read_to_string(&mut output)?;
-                            println!("{}", output);
-                        } else {
-                            prev_stdout = Some(ChildStdout::from(pipe_out_r));
-                        }
-                    }
-                    ForkResult::Child => {
-                        drop(pipe_out_r);
-                        drop(pipe_err_r);
-                        dup2(pipe_out_w.as_raw_fd(), 1)?;
-                        dup2(pipe_err_w.as_raw_fd(), 2)?;
-                        command.run_builtin()?;
-                        std::process::exit(0);
-                    }
-                }
-            } else {
-                let mut child = command.run_cmd(prev_stdout.take())?;
-                if i == self.commands.len() - 1 {
-                    let output = child.wait_with_output()?;
-                    println!("{}", String::from_utf8_lossy(&output.stdout));
-                } else {
-                    prev_stdout = Some(child.stdout.take().unwrap());
-                }
+            if i == self.commands.len() - 1 {
+                let mut output = String::new();
+                let mut reader = BufReader::new(unsafe {
+                    File::from_raw_fd(prev_stdout.take().unwrap().into_raw_fd())
+                });
+                reader.read_to_string(&mut output)?;
+                let trimmed = output.trim_end_matches('\n').to_string();
+                println!("{}", trimmed);
+                return Ok("".to_string());
             }
         }
         Ok("".to_string())
@@ -68,7 +42,7 @@ impl Pipeline {
 }
 
 impl Index<usize> for Pipeline {
-    type Output = SimpleCommand;
+    type Output = Box<dyn ShellCommand>;
 
     fn index(&self, index: usize) -> &Self::Output {
         &self.commands[index]

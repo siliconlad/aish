@@ -1,40 +1,99 @@
-use crate::builtins::{builtin, is_builtin};
+use crate::builtins::builtin;
+use crate::builtins::is_builtin;
+use crate::traits::{Runnable, ShellCommand};
+use nix::unistd::{dup2, fork, pipe, ForkResult};
 use std::error::Error;
-use std::fmt::Display;
+use std::os::fd::AsRawFd;
 use std::process::{Child, ChildStdout, Command, Stdio};
 
+pub fn cmd(tokens: Vec<String>) -> Result<Box<dyn ShellCommand>, Box<dyn Error>> {
+    if tokens.is_empty() {
+        Err("Tokens cannot be empty".into())
+    } else if is_builtin(&tokens[0]) {
+        Ok(Box::new(BuiltinCommand::new(tokens)?))
+    } else {
+        Ok(Box::new(ExternalCommand::new(tokens)?))
+    }
+}
+
+pub fn runnable(tokens: Vec<String>) -> Result<Box<dyn Runnable>, Box<dyn Error>> {
+    if tokens.is_empty() {
+        Err("Tokens cannot be empty".into())
+    } else if is_builtin(&tokens[0]) {
+        Ok(Box::new(BuiltinCommand::new(tokens)?))
+    } else {
+        Ok(Box::new(ExternalCommand::new(tokens)?))
+    }
+}
+
 #[derive(Debug)]
-pub struct SimpleCommand {
-    builtin: bool,
+pub struct BuiltinCommand {
     tokens: Vec<String>,
 }
 
-impl SimpleCommand {
-    pub fn new(tokens: Vec<String>) -> Result<SimpleCommand, Box<dyn Error>> {
+impl BuiltinCommand {
+    pub fn new(tokens: Vec<String>) -> Result<BuiltinCommand, Box<dyn Error>> {
         if tokens.is_empty() {
             return Err("Tokens cannot be empty".into());
         }
-        Ok(SimpleCommand {
-            builtin: is_builtin(&tokens[0]),
-            tokens,
-        })
-    }
-
-    pub fn is_builtin(&self) -> bool {
-        self.builtin
-    }
-
-    pub fn cmd(&self) -> &String {
-        &self.tokens[0]
-    }
-
-    pub fn args(&self) -> Vec<String> {
-        self.tokens[1..].to_vec()
+        Ok(BuiltinCommand { tokens })
     }
 
     pub fn run_builtin(&self) -> Result<(), Box<dyn Error>> {
-        builtin(&self.tokens[0], self.tokens[1..].to_vec())?;
+        builtin(self.cmd(), self.args())?;
         Ok(())
+    }
+}
+
+impl Runnable for BuiltinCommand {
+    fn run(&self) -> Result<String, Box<dyn Error>> {
+        self.run_builtin()?;
+        Ok("".to_string())
+    }
+}
+
+impl ShellCommand for BuiltinCommand {
+    fn cmd(&self) -> &str {
+        &self.tokens[0]
+    }
+
+    fn args(&self) -> Vec<&str> {
+        self.tokens[1..].iter().map(|s| s.as_str()).collect()
+    }
+
+    fn pipe(&self, _stdin: Option<ChildStdout>) -> Result<ChildStdout, Box<dyn Error>> {
+        let (pipe_out_r, pipe_out_w) = pipe()?;
+        let (pipe_err_r, pipe_err_w) = pipe()?;
+
+        match unsafe { fork() }? {
+            ForkResult::Parent { child: _ } => {
+                drop(pipe_out_w);
+                drop(pipe_err_w);
+                Ok(ChildStdout::from(pipe_out_r))
+            }
+            ForkResult::Child => {
+                drop(pipe_out_r);
+                drop(pipe_err_r);
+                dup2(pipe_out_w.as_raw_fd(), 1)?;
+                dup2(pipe_err_w.as_raw_fd(), 2)?;
+                self.run_builtin()?;
+                std::process::exit(0);
+            }
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct ExternalCommand {
+    tokens: Vec<String>,
+}
+
+impl ExternalCommand {
+    pub fn new(tokens: Vec<String>) -> Result<ExternalCommand, Box<dyn Error>> {
+        if tokens.is_empty() {
+            return Err("Tokens cannot be empty".into());
+        }
+        Ok(ExternalCommand { tokens })
     }
 
     pub fn run_cmd(&self, stdin: Option<ChildStdout>) -> Result<Child, Box<dyn Error>> {
@@ -55,30 +114,30 @@ impl SimpleCommand {
 
         Ok(child)
     }
-
-    // pub fn run(&self, stdin: Option<Stdio>) -> Result<(), Box<dyn Error>> {
-    //     // Spawn the command
-    //     if self.builtin {
-    //         builtin(&self.tokens[0], self.tokens[1..].to_vec())?;
-    //     }
-    //     else {
-    //         let child = match Command::new(self.cmd())
-    //             .args(self.args())
-    //             .stdin(stdin.unwrap_or(Stdio::inherit()))
-    //             .stdout(Stdio::piped())
-    //             .spawn()
-    //         {
-    //             Ok(child) => child,
-    //             Err(e) => return Err(e.into()),
-    //         };
-    //     }
-
-    //     Ok(())
-    // }
 }
 
-impl Display for SimpleCommand {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} {}", self.cmd(), self.args().join(" "))
+impl Runnable for ExternalCommand {
+    fn run(&self) -> Result<String, Box<dyn Error>> {
+        let child = self.run_cmd(None)?;
+        let output = child.wait_with_output()?;
+        let output_str = String::from_utf8_lossy(&output.stdout);
+        let trimmed = output_str.trim_end_matches('\n').to_string();
+        println!("{}", trimmed);
+        Ok("".to_string())
+    }
+}
+
+impl ShellCommand for ExternalCommand {
+    fn cmd(&self) -> &str {
+        &self.tokens[0]
+    }
+
+    fn args(&self) -> Vec<&str> {
+        self.tokens[1..].iter().map(|s| s.as_str()).collect()
+    }
+
+    fn pipe(&self, stdin: Option<ChildStdout>) -> Result<ChildStdout, Box<dyn Error>> {
+        let mut child = self.run_cmd(stdin)?;
+        Ok(child.stdout.take().unwrap())
     }
 }

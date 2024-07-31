@@ -2,6 +2,7 @@ pub mod builtins;
 pub mod command;
 pub mod pipeline;
 pub mod tokenize;
+pub mod traits;
 
 use rustyline::error::ReadlineError;
 use rustyline::{DefaultEditor, Result};
