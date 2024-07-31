@@ -99,10 +99,7 @@ impl ExternalCommand {
 
 impl Runnable for ExternalCommand {
     fn run(&self) -> Result<String, Box<dyn Error>> {
-        let mut child = match Command::new(self.cmd())
-            .args(self.args())
-            .spawn()
-        {
+        let mut child = match Command::new(self.cmd()).args(self.args()).spawn() {
             Ok(child) => child,
             Err(e) => return Err(e.into()),
         };
