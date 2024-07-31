@@ -4,7 +4,7 @@ use crate::traits::{Runnable, ShellCommand};
 use nix::unistd::{dup2, fork, pipe, ForkResult};
 use std::error::Error;
 use std::os::fd::AsRawFd;
-use std::process::{Child, ChildStdout, Command, Stdio};
+use std::process::{ChildStdout, Command, Stdio};
 
 pub fn cmd(tokens: Vec<String>) -> Result<Box<dyn ShellCommand>, Box<dyn Error>> {
     if tokens.is_empty() {
@@ -95,34 +95,21 @@ impl ExternalCommand {
         }
         Ok(ExternalCommand { tokens })
     }
+}
 
-    pub fn run_cmd(&self, stdin: Option<ChildStdout>) -> Result<Child, Box<dyn Error>> {
-        let input = match stdin {
-            Some(input) => Stdio::from(input),
-            None => Stdio::inherit(),
-        };
-        // Spawn the command
-        let child = match Command::new(self.cmd())
+impl Runnable for ExternalCommand {
+    fn run(&self) -> Result<String, Box<dyn Error>> {
+        let mut child = match Command::new(self.cmd())
             .args(self.args())
-            .stdin(input)
-            .stdout(Stdio::piped())
             .spawn()
         {
             Ok(child) => child,
             Err(e) => return Err(e.into()),
         };
-
-        Ok(child)
-    }
-}
-
-impl Runnable for ExternalCommand {
-    fn run(&self) -> Result<String, Box<dyn Error>> {
-        let child = self.run_cmd(None)?;
-        let output = child.wait_with_output()?;
-        let output_str = String::from_utf8_lossy(&output.stdout);
-        let trimmed = output_str.trim_end_matches('\n').to_string();
-        println!("{}", trimmed);
+        match child.wait() {
+            Ok(_) => {}
+            Err(e) => return Err(e.into()),
+        }
         Ok("".to_string())
     }
 }
@@ -137,7 +124,21 @@ impl ShellCommand for ExternalCommand {
     }
 
     fn pipe(&self, stdin: Option<ChildStdout>) -> Result<ChildStdout, Box<dyn Error>> {
-        let mut child = self.run_cmd(stdin)?;
+        let input = match stdin {
+            Some(input) => Stdio::from(input),
+            None => Stdio::inherit(),
+        };
+        // Spawn the command
+        let mut child = match Command::new(self.cmd())
+            .args(self.args())
+            .stdin(input)
+            .stdout(Stdio::piped())
+            .spawn()
+        {
+            Ok(child) => child,
+            Err(e) => return Err(e.into()),
+        };
+
         Ok(child.stdout.take().unwrap())
     }
 }
