@@ -1,19 +1,8 @@
-use std::fmt::Display;
+use std::error::Error;
 
-#[derive(Debug)]
-pub struct TokenizedInput {
-    tokens: Vec<String>,
-}
-
-impl TokenizedInput {
-    pub fn cmd(&self) -> &String {
-        &self.tokens[0]
-    }
-
-    pub fn args(&self) -> Vec<String> {
-        self.tokens[1..].to_vec()
-    }
-}
+use crate::command::{cmd, runnable};
+use crate::pipeline::Pipeline;
+use crate::traits::{Runnable, ShellCommand};
 
 pub fn clean(input: &mut String) -> &mut String {
     *input = input.trim().to_string();
@@ -27,17 +16,25 @@ pub fn clean(input: &mut String) -> &mut String {
     input
 }
 
-pub fn tokenize(input: &mut String) -> TokenizedInput {
+pub fn tokenize(input: &mut String) -> Result<Box<dyn Runnable>, Box<dyn Error>> {
     let mut in_quotes = false;
     let mut in_double_quotes = false;
+    let mut in_pipeline = false;
     let mut escaped = false;
     let mut current_token = String::new();
     let mut tokens = Vec::<String>::new();
+    let mut commands = Vec::<Box<dyn ShellCommand>>::new();
 
     let cleaned = clean(input);
 
     for c in cleaned.chars() {
         match c {
+            '|' => {
+                tokens.retain(|x| !x.is_empty());
+                commands.push(cmd(tokens)?);
+                tokens = Vec::<String>::new();
+                in_pipeline = true;
+            }
             '\\' => {
                 if !in_quotes {
                     escaped = !escaped;
@@ -82,15 +79,13 @@ pub fn tokenize(input: &mut String) -> TokenizedInput {
     }
     // Add last token
     tokens.push(current_token);
-
-    // Remove empty strings
     tokens.retain(|x| !x.is_empty());
 
-    TokenizedInput { tokens }
-}
-
-impl Display for TokenizedInput {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self.tokens)
+    // Return appropriate type
+    if in_pipeline {
+        commands.push(cmd(tokens)?);
+        Ok(Box::new(Pipeline::new(commands)?))
+    } else {
+        Ok(runnable(tokens)?)
     }
 }

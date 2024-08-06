@@ -1,9 +1,11 @@
 pub mod builtins;
+pub mod command;
+pub mod pipeline;
 pub mod tokenize;
+pub mod traits;
 
 use rustyline::error::ReadlineError;
 use rustyline::{DefaultEditor, Result};
-use std::process::Command;
 
 fn main() -> Result<()> {
     let mut rl = DefaultEditor::new()?;
@@ -22,45 +24,23 @@ fn main() -> Result<()> {
             }
         };
 
-        // Tokenize input
-        let tokenized = tokenize::tokenize(&mut buffer);
+        // Convert the input into a command
+        let tokenized = match tokenize::tokenize(&mut buffer) {
+            Ok(tokenized) => tokenized,
+            Err(e) => {
+                eprintln!("{}", e);
+                continue;
+            }
+        };
 
-        // Run command
-        if tokenized.cmd() == "cd" {
-            match builtins::cd(tokenized.args()) {
-                Ok(_) => {}
-                Err(e) => eprintln!("{}", e),
-            }
-        } else if tokenized.cmd() == "pwd" {
-            match builtins::pwd() {
-                Ok(pwd) => println!("{}", pwd),
-                Err(e) => eprintln!("{}", e),
-            }
-        } else if tokenized.cmd() == "exit" {
-            match builtins::exit() {
-                Ok(_) => continue,
-                Err(e) => eprintln!("{}", e),
-            }
-        } else if tokenized.cmd() == "echo" {
-            match builtins::echo(tokenized.args()) {
-                Ok(_) => {}
-                Err(e) => eprintln!("{}", e),
-            }
-        } else {
-            // Spawn the command
-            let mut child = match Command::new(tokenized.cmd()).args(tokenized.args()).spawn() {
-                Ok(child) => child,
-                Err(_) => {
-                    eprintln!("Failed to execute command");
-                    continue;
+        // Run the command
+        match tokenized.run() {
+            Ok(s) => {
+                if !s.is_empty() {
+                    println!("{}", s)
                 }
-            };
-
-            // Wait for the command to finish
-            match child.wait() {
-                Ok(_) => {}
-                Err(e) => eprintln!("{}", e),
             }
+            Err(e) => eprintln!("{}", e),
         }
     }
     Ok(())
