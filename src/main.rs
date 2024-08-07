@@ -7,9 +7,9 @@ pub mod pipeline;
 pub mod tokenize;
 pub mod traits;
 
+use crate::builtins::expand_aliases;
 use rustyline::error::ReadlineError;
 use rustyline::{DefaultEditor, Result};
-use crate::builtins::expand_aliases;
 
 fn main() -> Result<()> {
     let mut rl = DefaultEditor::new()?;

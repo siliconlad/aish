@@ -1,5 +1,5 @@
-use std::error::Error;
 use std::collections::HashMap;
+use std::error::Error;
 use std::sync::Mutex;
 
 lazy_static! {
