@@ -4,14 +4,16 @@ pub mod pipeline;
 pub mod tokenize;
 pub mod traits;
 
+use crate::builtins::expand_aliases;
 use rustyline::error::ReadlineError;
 use rustyline::{DefaultEditor, Result};
 
 fn main() -> Result<()> {
     let mut rl = DefaultEditor::new()?;
+
     loop {
         let readline = rl.readline("> ");
-        let mut buffer = match readline {
+        let buffer = match readline {
             Ok(line) => {
                 let _ = rl.add_history_entry(line.as_str());
                 line
@@ -24,8 +26,11 @@ fn main() -> Result<()> {
             }
         };
 
+        // Expand aliases
+        let mut expanded_buffer = expand_aliases(&buffer);
+
         // Convert the input into a command
-        let tokenized = match tokenize::tokenize(&mut buffer) {
+        let tokenized = match tokenize::tokenize(&mut expanded_buffer) {
             Ok(tokenized) => tokenized,
             Err(e) => {
                 eprintln!("{}", e);
