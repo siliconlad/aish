@@ -36,7 +36,9 @@ impl Runnable for Pipeline {
                         BufReader::new(unsafe { File::from_raw_fd(stdout.into_raw_fd()) });
                     reader.read_to_string(&mut output)?;
                     let trimmed = output.trim_end_matches('\n').to_string();
-                    if !trimmed.is_empty() { println!("{}", trimmed); }
+                    if !trimmed.is_empty() {
+                        println!("{}", trimmed);
+                    }
                 }
                 return Ok("".to_string());
             } else {

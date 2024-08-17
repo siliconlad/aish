@@ -35,7 +35,8 @@ pub fn tokenize(input: &mut String) -> Result<Box<dyn Runnable>, Box<dyn Error>>
 
     for c in cleaned.chars() {
         match c {
-            '<' => {  // Input Redirect
+            '<' => {
+                // Input Redirect
                 in_input_redirect = true;
                 if in_output_redirect {
                     let prev_cmd = commands.remove(commands.len() - 1);
@@ -50,7 +51,8 @@ pub fn tokenize(input: &mut String) -> Result<Box<dyn Runnable>, Box<dyn Error>>
                 }
                 tokens = Vec::<String>::new();
             }
-            '>' => {  // Output Redirect
+            '>' => {
+                // Output Redirect
                 in_output_redirect = true;
                 if in_input_redirect {
                     let prev_cmd = commands.remove(commands.len() - 1);
