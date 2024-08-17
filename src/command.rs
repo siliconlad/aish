@@ -61,7 +61,7 @@ impl ShellCommand for BuiltinCommand {
         self.tokens[1..].iter().map(|s| s.as_str()).collect()
     }
 
-    fn pipe(&self, _stdin: Option<ChildStdout>) -> Result<Option<ChildStdout>, Box<dyn Error>> {
+    fn pipe(&self, _stdin: Option<Stdio>) -> Result<Option<ChildStdout>, Box<dyn Error>> {
         let (pipe_out_r, pipe_out_w) = pipe()?;
         let (pipe_err_r, pipe_err_w) = pipe()?;
 
@@ -120,9 +120,9 @@ impl ShellCommand for ExternalCommand {
         self.tokens[1..].iter().map(|s| s.as_str()).collect()
     }
 
-    fn pipe(&self, stdin: Option<ChildStdout>) -> Result<Option<ChildStdout>, Box<dyn Error>> {
+    fn pipe(&self, stdin: Option<Stdio>) -> Result<Option<ChildStdout>, Box<dyn Error>> {
         let input = match stdin {
-            Some(input) => Stdio::from(input),
+            Some(input) => input,
             None => Stdio::inherit(),
         };
         // Spawn the command
