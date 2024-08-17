@@ -6,9 +6,9 @@ pub mod sequence;
 pub mod tokenize;
 pub mod traits;
 
+use home::home_dir;
 use rustyline::error::ReadlineError;
 use rustyline::{DefaultEditor, Result};
-use home::home_dir;
 
 fn main() -> Result<()> {
     let mut rl = DefaultEditor::new()?;
