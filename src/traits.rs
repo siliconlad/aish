@@ -9,7 +9,7 @@ pub trait Runnable {
 pub trait ShellCommand: Runnable {
     fn cmd(&self) -> &str;
     fn args(&self) -> Vec<&str>;
-    fn pipe(&self, stdin: Option<ChildStdout>) -> Result<ChildStdout, Box<dyn Error>>;
+    fn pipe(&self, stdin: Option<ChildStdout>) -> Result<Option<ChildStdout>, Box<dyn Error>>;
 }
 
 impl Display for dyn ShellCommand {
