@@ -4,5 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+home = "0.5.9"
+log = "0.4.22"
 nix = { version = "0.29.0", features = ["process", "fs"] }
 rustyline = "14.0.0"
+simplelog = "0.12.2"

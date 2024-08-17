@@ -1,5 +1,6 @@
 use std::error::Error;
 
+
 use crate::command::{cmd, runnable};
 use crate::pipeline::Pipeline;
 use crate::traits::{Runnable, ShellCommand};
@@ -30,12 +31,14 @@ pub fn tokenize(input: &mut String) -> Result<Box<dyn Runnable>, Box<dyn Error>>
     for c in cleaned.chars() {
         match c {
             '|' => {
+                debug!("Found pipe |");
                 tokens.retain(|x| !x.is_empty());
                 commands.push(cmd(tokens)?);
                 tokens = Vec::<String>::new();
                 in_pipeline = true;
             }
             '\\' => {
+                debug!("Found backslash \\");
                 if !in_quotes {
                     escaped = !escaped;
                 } else {
@@ -43,6 +46,7 @@ pub fn tokenize(input: &mut String) -> Result<Box<dyn Runnable>, Box<dyn Error>>
                 }
             }
             '\'' => {
+                debug!("Found single quote \'");
                 if in_double_quotes {
                     current_token.push(c);
                 } else if !escaped {
@@ -53,6 +57,7 @@ pub fn tokenize(input: &mut String) -> Result<Box<dyn Runnable>, Box<dyn Error>>
                 escaped = false;
             }
             '"' => {
+                debug!("Found double quote \"");
                 if in_quotes {
                     current_token.push(c);
                 } else if !escaped {
@@ -63,6 +68,7 @@ pub fn tokenize(input: &mut String) -> Result<Box<dyn Runnable>, Box<dyn Error>>
                 escaped = false;
             }
             ' ' => {
+                debug!("Found whitespace");
                 if in_quotes || in_double_quotes || escaped {
                     current_token.push(c);
                 } else {
