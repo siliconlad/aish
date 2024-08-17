@@ -1,6 +1,7 @@
 use crate::traits::{Runnable, ShellCommand};
 use std::error::Error;
 use std::fs::File;
+use std::fs::OpenOptions;
 use std::io::Read;
 use std::os::fd::IntoRawFd;
 use std::os::unix::io::FromRawFd;
@@ -44,6 +45,64 @@ impl Runnable for OutputRedirect {
 }
 
 impl ShellCommand for OutputRedirect {
+    fn cmd(&self) -> &str {
+        self.commands[0].cmd()
+    }
+
+    fn args(&self) -> Vec<&str> {
+        self.commands[0].args()
+    }
+
+    fn pipe(&self, stdin: Option<Stdio>) -> Result<Option<ChildStdout>, Box<dyn Error>> {
+        let mut file = self.open_file()?;
+        let stdout = self.commands[0].pipe(stdin)?;
+        if let Some(mut stdout) = stdout {
+            std::io::copy(&mut stdout, &mut file)?;
+        }
+        Ok(None)
+    }
+}
+
+pub struct OutputRedirectAppend {
+    commands: Vec<Box<dyn ShellCommand>>,
+    output_file: String,
+}
+
+impl OutputRedirectAppend {
+    pub fn new(
+        commands: Vec<Box<dyn ShellCommand>>,
+        output_file: String,
+    ) -> Result<Self, Box<dyn Error>> {
+        if commands.len() != 1 {
+            return Err("Output redirect must have exactly one command".into());
+        }
+        Ok(Self {
+            commands,
+            output_file,
+        })
+    }
+
+    fn open_file(&self) -> Result<File, Box<dyn Error>> {
+        let file = OpenOptions::new()
+            .append(true)
+            .create(true)
+            .open(&self.output_file)?;
+        Ok(file)
+    }
+}
+
+impl Runnable for OutputRedirectAppend {
+    fn run(&self) -> Result<String, Box<dyn Error>> {
+        let mut file = self.open_file()?;
+        let stdout = self.commands[0].pipe(None)?;
+        if let Some(mut stdout) = stdout {
+            std::io::copy(&mut stdout, &mut file)?;
+        }
+        Ok("".to_string())
+    }
+}
+
+impl ShellCommand for OutputRedirectAppend {
     fn cmd(&self) -> &str {
         self.commands[0].cmd()
     }
