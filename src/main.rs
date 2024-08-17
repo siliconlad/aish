@@ -4,14 +4,15 @@ pub mod pipeline;
 pub mod tokenize;
 pub mod traits;
 
-#[macro_use] extern crate log;
+#[macro_use]
+extern crate log;
 extern crate simplelog;
 
+use home::home_dir;
 use rustyline::error::ReadlineError;
 use rustyline::{DefaultEditor, Result};
-use std::fs::OpenOptions;
-use home::home_dir;
 use simplelog::{Config, LevelFilter, WriteLogger};
+use std::fs::OpenOptions;
 
 fn main() -> Result<()> {
     // Setup logging

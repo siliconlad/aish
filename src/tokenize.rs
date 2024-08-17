@@ -1,6 +1,5 @@
 use std::error::Error;
 
-
 use crate::command::{cmd, runnable};
 use crate::pipeline::Pipeline;
 use crate::traits::{Runnable, ShellCommand};
