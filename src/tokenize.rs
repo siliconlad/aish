@@ -2,6 +2,7 @@ use std::error::Error;
 
 use crate::command::{cmd, runnable};
 use crate::pipeline::Pipeline;
+use crate::redirect::OutputRedirect;
 use crate::sequence::Sequence;
 use crate::traits::{Runnable, ShellCommand};
 
@@ -22,6 +23,7 @@ pub fn tokenize(input: &mut String) -> Result<Box<dyn Runnable>, Box<dyn Error>>
     let mut in_double_quotes = false;
     let mut in_pipeline = false;
     let mut in_sequence = false;
+    let mut in_output_redirect = false;
     let mut escaped = false;
     let mut current_token = String::new();
     let mut tokens = Vec::<String>::new();
@@ -32,6 +34,12 @@ pub fn tokenize(input: &mut String) -> Result<Box<dyn Runnable>, Box<dyn Error>>
 
     for c in cleaned.chars() {
         match c {
+            '>' => {
+                in_output_redirect = true;
+                tokens.retain(|x| !x.is_empty());
+                commands.push(cmd(tokens)?);
+                tokens = Vec::<String>::new();
+            }
             ';' => {
                 tokens.push(current_token);
                 current_token = String::new();
@@ -42,6 +50,20 @@ pub fn tokenize(input: &mut String) -> Result<Box<dyn Runnable>, Box<dyn Error>>
                     final_commands.push(Box::new(Pipeline::new(commands)?));
                     commands = Vec::<Box<dyn ShellCommand>>::new();
                     in_pipeline = false;
+                } else if in_pipeline && in_output_redirect {
+                    let prev_cmd = commands.remove(commands.len() - 1);
+                    commands.push(Box::new(OutputRedirect::new(vec![prev_cmd], tokens.join(""))?));
+                    final_commands.push(Box::new(Pipeline::new(commands)?));
+                    tokens = Vec::<String>::new();
+                    commands = Vec::<Box<dyn ShellCommand>>::new();
+                    in_pipeline = false;
+                    in_output_redirect = false;
+                } else if in_output_redirect {
+                    let output_redirect = OutputRedirect::new(commands, tokens.join(""))?;
+                    final_commands.push(Box::new(output_redirect));
+                    commands = Vec::<Box<dyn ShellCommand>>::new();
+                    tokens = Vec::<String>::new();
+                    in_output_redirect = false;
                 } else {
                     final_commands.push(runnable(tokens)?);
                     tokens = Vec::<String>::new();
@@ -50,7 +72,16 @@ pub fn tokenize(input: &mut String) -> Result<Box<dyn Runnable>, Box<dyn Error>>
             }
             '|' => {
                 tokens.retain(|x| !x.is_empty());
-                commands.push(cmd(tokens)?);
+                if in_output_redirect {
+                    let prev_cmd = commands.remove(commands.len() - 1);
+                    commands.push(Box::new(OutputRedirect::new(
+                        vec![prev_cmd],
+                        tokens.join(""),
+                    )?));
+                    in_output_redirect = false;
+                } else {
+                    commands.push(cmd(tokens)?);
+                }
                 tokens = Vec::<String>::new();
                 in_pipeline = true;
             }
@@ -102,21 +133,37 @@ pub fn tokenize(input: &mut String) -> Result<Box<dyn Runnable>, Box<dyn Error>>
 
     // Return appropriate type
     if in_pipeline && !in_sequence {
-        if !tokens.is_empty() {
+        if in_output_redirect {
+            let prev_cmd = commands.remove(commands.len() - 1);
+            commands.push(Box::new(OutputRedirect::new(
+                vec![prev_cmd],
+                tokens.join(""),
+            )?));
+        } else if !tokens.is_empty() {
             commands.push(cmd(tokens)?);
         }
         Ok(Box::new(Pipeline::new(commands)?))
     } else if in_pipeline && in_sequence {
-        if !tokens.is_empty() {
+        if in_output_redirect {
+            let prev_cmd = commands.remove(commands.len() - 1);
+            commands.push(Box::new(OutputRedirect::new(
+                vec![prev_cmd],
+                tokens.join(""),
+            )?));
+        } else if !tokens.is_empty() {
             commands.push(cmd(tokens)?);
         }
         final_commands.push(Box::new(Pipeline::new(commands)?));
         Ok(Box::new(Sequence::new(final_commands)?))
     } else if in_sequence {
-        if !tokens.is_empty() {
+        if in_output_redirect {
+            final_commands.push(Box::new(OutputRedirect::new(commands, tokens.join(""))?));
+        } else if !tokens.is_empty() {
             final_commands.push(runnable(tokens)?);
         }
         Ok(Box::new(Sequence::new(final_commands)?))
+    } else if in_output_redirect {
+            Ok(Box::new(OutputRedirect::new(commands, tokens.join(""))?))
     } else {
         Ok(runnable(tokens)?)
     }

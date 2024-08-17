@@ -1,6 +1,7 @@
 pub mod builtins;
 pub mod command;
 pub mod pipeline;
+pub mod redirect;
 pub mod sequence;
 pub mod tokenize;
 pub mod traits;
