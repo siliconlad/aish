@@ -44,7 +44,7 @@ pub fn tokenize(input: &mut String) -> Result<Box<dyn Runnable>, Box<dyn Error>>
                 tokens.push(current_token);
                 current_token = String::new();
                 tokens.retain(|x| !x.is_empty());
-                if in_pipeline {
+                if in_pipeline && !in_output_redirect {
                     commands.push(cmd(tokens)?);
                     tokens = Vec::<String>::new();
                     final_commands.push(Box::new(Pipeline::new(commands)?));

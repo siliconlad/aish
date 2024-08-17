@@ -29,8 +29,9 @@ impl Runnable for Pipeline {
             if i == self.commands.len() - 1 {
                 let mut output = String::new();
                 if let Some(stdout) = prev_stdout {
-                    let mut reader =
-                        BufReader::new(unsafe { File::from_raw_fd(stdout.into_raw_fd()) });
+                    let mut reader = BufReader::new(unsafe {
+                        File::from_raw_fd(stdout.into_raw_fd())
+                    });
                     reader.read_to_string(&mut output)?;
                     let trimmed = output.trim_end_matches('\n').to_string();
                     println!("{}", trimmed);
