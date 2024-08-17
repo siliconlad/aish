@@ -52,7 +52,10 @@ pub fn tokenize(input: &mut String) -> Result<Box<dyn Runnable>, Box<dyn Error>>
                     in_pipeline = false;
                 } else if in_pipeline && in_output_redirect {
                     let prev_cmd = commands.remove(commands.len() - 1);
-                    commands.push(Box::new(OutputRedirect::new(vec![prev_cmd], tokens.join(""))?));
+                    commands.push(Box::new(OutputRedirect::new(
+                        vec![prev_cmd],
+                        tokens.join(""),
+                    )?));
                     final_commands.push(Box::new(Pipeline::new(commands)?));
                     tokens = Vec::<String>::new();
                     commands = Vec::<Box<dyn ShellCommand>>::new();
@@ -163,7 +166,7 @@ pub fn tokenize(input: &mut String) -> Result<Box<dyn Runnable>, Box<dyn Error>>
         }
         Ok(Box::new(Sequence::new(final_commands)?))
     } else if in_output_redirect {
-            Ok(Box::new(OutputRedirect::new(commands, tokens.join(""))?))
+        Ok(Box::new(OutputRedirect::new(commands, tokens.join(""))?))
     } else {
         Ok(runnable(tokens)?)
     }
