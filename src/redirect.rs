@@ -8,6 +8,7 @@ use std::os::unix::io::FromRawFd;
 use std::process::ChildStdout;
 use std::process::Stdio;
 
+#[derive(Clone)]
 pub struct OutputRedirect {
     commands: Vec<Box<dyn ShellCommand>>,
     output_file: String,
@@ -63,6 +64,7 @@ impl ShellCommand for OutputRedirect {
     }
 }
 
+#[derive(Clone)]
 pub struct OutputRedirectAppend {
     commands: Vec<Box<dyn ShellCommand>>,
     output_file: String,
@@ -121,6 +123,7 @@ impl ShellCommand for OutputRedirectAppend {
     }
 }
 
+#[derive(Clone)]
 pub struct InputRedirect {
     commands: Vec<Box<dyn ShellCommand>>,
     input_file: String,

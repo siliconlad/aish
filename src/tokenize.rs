@@ -6,180 +6,130 @@ use crate::redirect::{InputRedirect, OutputRedirect, OutputRedirectAppend};
 use crate::sequence::Sequence;
 use crate::traits::{Runnable, ShellCommand};
 
+// Type aliases for readability
+type ShellCommandBox = Box<dyn ShellCommand>;
+type RunnableBox = Box<dyn Runnable>;
+type ShellCommandBoxes = Vec<ShellCommandBox>;
+
 pub fn clean(input: &mut String) -> &mut String {
+    // Remove leading and trailing whitespace
     *input = input.trim().to_string();
 
+    // Remove trailing newline
     if input.ends_with('\n') {
         input.pop();
     }
-    // Replace each whitespace with a single space
-    *input = input.split_whitespace().collect::<Vec<&str>>().join(" ");
+
+    // Add semicolon to trigger final command
+    if !input.ends_with(';') {
+        input.push(';');
+    }
 
     input
 }
 
-pub fn tokenize(input: &mut String) -> Result<Box<dyn Runnable>, Box<dyn Error>> {
+pub fn tokenize(input: &mut String) -> Result<RunnableBox, Box<dyn Error>> {
+    // Flags for state
     let mut in_quotes = false;
     let mut in_double_quotes = false;
     let mut in_pipeline = false;
-    let mut in_sequence = false;
     let mut in_output_redirect = false;
     let mut in_output_redirect_append = false;
     let mut in_input_redirect = false;
     let mut escaped = false;
+
+    // Accumulators
     let mut current_token = String::new();
     let mut tokens = Vec::<String>::new();
     let mut commands = Vec::<Box<dyn ShellCommand>>::new();
+    let mut redirect_cmd: Option<Box<dyn ShellCommand>> = None;
     let mut final_commands = Vec::<Box<dyn Runnable>>::new();
 
     let cleaned = clean(input);
-
     for (i, c) in cleaned.chars().enumerate() {
         match c {
             // Input Redirect
             '<' => {
-                in_input_redirect = true;
                 if in_output_redirect {
-                    let prev_cmd = commands.remove(commands.len() - 1);
-                    commands.push(Box::new(OutputRedirect::new(
-                        vec![prev_cmd],
-                        tokens.join(""),
-                    )?));
+                    let cmd = create_oredirect(redirect_cmd.take().unwrap(), &mut tokens)?;
+                    commands.push(Box::new(cmd));
                     in_output_redirect = false;
                 } else {
-                    tokens.retain(|x| !x.is_empty());
-                    commands.push(cmd(tokens)?);
+                    redirect_cmd = Some(create_command(&mut tokens)?);
                 }
-                tokens = Vec::<String>::new();
+                in_input_redirect = true;
             }
             // Output Redirect
             '>' => {
                 // End input redirect and start output redirect
                 if in_input_redirect {
-                    let prev_cmd = commands.remove(commands.len() - 1);
-                    commands.push(Box::new(InputRedirect::new(
-                        vec![prev_cmd],
-                        tokens.join(""),
-                    )?));
+                    let cmd = create_iredirect(redirect_cmd.take().unwrap(), &mut tokens)?;
+                    commands.push(Box::new(cmd));
                     in_input_redirect = false;
-                    tokens = Vec::<String>::new();
                 }
 
                 if cleaned.chars().nth(i + 1) == Some('>') {
                     in_output_redirect_append = true;
-                } else if in_output_redirect_append {
-                    tokens.retain(|x| !x.is_empty());
-                    commands.push(cmd(tokens)?);
-                    tokens = Vec::<String>::new();
                 } else {
-                    in_output_redirect = true;
-                    tokens.retain(|x| !x.is_empty());
-                    commands.push(cmd(tokens)?);
-                    tokens = Vec::<String>::new();
+                    if !in_output_redirect_append {
+                        in_output_redirect = true;
+                    }
+                    redirect_cmd = Some(create_command(&mut tokens)?);
                 }
             }
             ';' => {
-                tokens.push(current_token);
-                current_token = String::new();
+                add_token(&mut tokens, &mut current_token);
                 if in_pipeline {
                     if in_input_redirect {
-                        let prev_cmd = commands.remove(commands.len() - 1);
-                        commands.push(Box::new(InputRedirect::new(
-                            vec![prev_cmd],
-                            tokens.join(""),
-                        )?));
-                        final_commands.push(Box::new(Pipeline::new(commands)?));
-                        tokens = Vec::<String>::new();
-                        commands = Vec::<Box<dyn ShellCommand>>::new();
-                        in_pipeline = false;
+                        let cmd = create_iredirect(redirect_cmd.take().unwrap(), &mut tokens)?;
+                        commands.push(Box::new(cmd));
                         in_input_redirect = false;
                     } else if in_output_redirect {
-                        tokens.retain(|x| !x.is_empty());
-                        let prev_cmd = commands.remove(commands.len() - 1);
-                        commands.push(Box::new(OutputRedirect::new(
-                            vec![prev_cmd],
-                            tokens.join(""),
-                        )?));
-                        final_commands.push(Box::new(Pipeline::new(commands)?));
-                        tokens = Vec::<String>::new();
-                        commands = Vec::<Box<dyn ShellCommand>>::new();
-                        in_pipeline = false;
+                        let cmd = create_oredirect(redirect_cmd.take().unwrap(), &mut tokens)?;
+                        commands.push(Box::new(cmd));
                         in_output_redirect = false;
                     } else if in_output_redirect_append {
-                        tokens.retain(|x| !x.is_empty());
-                        let prev_cmd = commands.remove(commands.len() - 1);
-                        commands.push(Box::new(OutputRedirectAppend::new(
-                            vec![prev_cmd],
-                            tokens.join(""),
-                        )?));
-                        final_commands.push(Box::new(Pipeline::new(commands)?));
-                        tokens = Vec::<String>::new();
-                        commands = Vec::<Box<dyn ShellCommand>>::new();
-                        in_pipeline = false;
+                        let cmd = create_aredirect(redirect_cmd.take().unwrap(), &mut tokens)?;
+                        commands.push(Box::new(cmd));
                         in_output_redirect_append = false;
                     } else {
-                        tokens.retain(|x| !x.is_empty());
-                        commands.push(cmd(tokens)?);
-                        tokens = Vec::<String>::new();
-                        final_commands.push(Box::new(Pipeline::new(commands)?));
-                        commands = Vec::<Box<dyn ShellCommand>>::new();
-                        in_pipeline = false;
+                        commands.push(create_command(&mut tokens)?);
                     }
+                    final_commands.push(create_pipeline(&mut commands)?);
+                    in_pipeline = false;
+                } else if in_input_redirect {
+                    let cmd = create_iredirect(redirect_cmd.take().unwrap(), &mut tokens)?;
+                    final_commands.push(Box::new(cmd));
+                    in_input_redirect = false;
                 } else if in_output_redirect {
-                    tokens.retain(|x| !x.is_empty());
-                    let output_redirect = OutputRedirect::new(commands, tokens.join(""))?;
-                    final_commands.push(Box::new(output_redirect));
-                    commands = Vec::<Box<dyn ShellCommand>>::new();
-                    tokens = Vec::<String>::new();
+                    let cmd = create_oredirect(redirect_cmd.take().unwrap(), &mut tokens)?;
+                    final_commands.push(Box::new(cmd));
                     in_output_redirect = false;
                 } else if in_output_redirect_append {
-                    tokens.retain(|x| !x.is_empty());
-                    let output_redirect_append =
-                        OutputRedirectAppend::new(commands, tokens.join(""))?;
-                    final_commands.push(Box::new(output_redirect_append));
-                    commands = Vec::<Box<dyn ShellCommand>>::new();
-                    tokens = Vec::<String>::new();
+                    let cmd = create_aredirect(redirect_cmd.take().unwrap(), &mut tokens)?;
+                    final_commands.push(Box::new(cmd));
                     in_output_redirect_append = false;
-                } else if in_input_redirect {
-                    let input_redirect = InputRedirect::new(commands, tokens.join(""))?;
-                    final_commands.push(Box::new(input_redirect));
-                    commands = Vec::<Box<dyn ShellCommand>>::new();
-                    tokens = Vec::<String>::new();
-                    in_input_redirect = false;
                 } else {
-                    tokens.retain(|x| !x.is_empty());
-                    final_commands.push(runnable(tokens)?);
-                    tokens = Vec::<String>::new();
+                    final_commands.push(runnable(tokens.clone())?);
+                    tokens.clear();
                 }
-                in_sequence = true;
             }
             '|' => {
-                tokens.retain(|x| !x.is_empty());
                 if in_output_redirect {
-                    let prev_cmd = commands.remove(commands.len() - 1);
-                    commands.push(Box::new(OutputRedirect::new(
-                        vec![prev_cmd],
-                        tokens.join(""),
-                    )?));
+                    let cmd = create_oredirect(redirect_cmd.take().unwrap(), &mut tokens)?;
+                    commands.push(Box::new(cmd));
                     in_output_redirect = false;
                 } else if in_output_redirect_append {
-                    let prev_cmd = commands.remove(commands.len() - 1);
-                    commands.push(Box::new(OutputRedirectAppend::new(
-                        vec![prev_cmd],
-                        tokens.join(""),
-                    )?));
+                    let cmd = create_aredirect(redirect_cmd.take().unwrap(), &mut tokens)?;
+                    commands.push(Box::new(cmd));
                     in_output_redirect_append = false;
                 } else if in_input_redirect {
-                    let prev_cmd = commands.remove(commands.len() - 1);
-                    commands.push(Box::new(InputRedirect::new(
-                        vec![prev_cmd],
-                        tokens.join(""),
-                    )?));
+                    let cmd = create_iredirect(redirect_cmd.take().unwrap(), &mut tokens)?;
+                    commands.push(Box::new(cmd));
                     in_input_redirect = false;
                 } else {
-                    commands.push(cmd(tokens)?);
+                    commands.push(create_command(&mut tokens)?);
                 }
-                tokens = Vec::<String>::new();
                 in_pipeline = true;
             }
             '\\' => {
@@ -213,8 +163,7 @@ pub fn tokenize(input: &mut String) -> Result<Box<dyn Runnable>, Box<dyn Error>>
                 if in_quotes || in_double_quotes || escaped {
                     current_token.push(c);
                 } else {
-                    tokens.push(current_token);
-                    current_token = String::new();
+                    add_token(&mut tokens, &mut current_token);
                 }
                 escaped = false;
             }
@@ -224,82 +173,59 @@ pub fn tokenize(input: &mut String) -> Result<Box<dyn Runnable>, Box<dyn Error>>
             }
         }
     }
-    // Add last token
-    tokens.push(current_token);
-    tokens.retain(|x| !x.is_empty());
 
-    // Return appropriate type
-    if in_pipeline && !in_sequence {
-        if in_output_redirect {
-            let prev_cmd = commands.remove(commands.len() - 1);
-            commands.push(Box::new(OutputRedirect::new(
-                vec![prev_cmd],
-                tokens.join(""),
-            )?));
-        } else if in_input_redirect {
-            let prev_cmd = commands.remove(commands.len() - 1);
-            commands.push(Box::new(InputRedirect::new(
-                vec![prev_cmd],
-                tokens.join(""),
-            )?));
-        } else if in_output_redirect_append {
-            let prev_cmd = commands.remove(commands.len() - 1);
-            commands.push(Box::new(OutputRedirectAppend::new(
-                vec![prev_cmd],
-                tokens.join(""),
-            )?));
-        } else if !tokens.is_empty() {
-            commands.push(cmd(tokens)?);
-        }
-        Ok(Box::new(Pipeline::new(commands)?))
-    } else if in_pipeline && in_sequence {
-        if in_output_redirect {
-            let prev_cmd = commands.remove(commands.len() - 1);
-            commands.push(Box::new(OutputRedirect::new(
-                vec![prev_cmd],
-                tokens.join(""),
-            )?));
-        } else if in_input_redirect {
-            let prev_cmd = commands.remove(commands.len() - 1);
-            commands.push(Box::new(InputRedirect::new(
-                vec![prev_cmd],
-                tokens.join(""),
-            )?));
-        } else if in_output_redirect_append {
-            let prev_cmd = commands.remove(commands.len() - 1);
-            commands.push(Box::new(OutputRedirectAppend::new(
-                vec![prev_cmd],
-                tokens.join(""),
-            )?));
-        } else if !tokens.is_empty() {
-            commands.push(cmd(tokens)?);
-        }
-        final_commands.push(Box::new(Pipeline::new(commands)?));
-        Ok(Box::new(Sequence::new(final_commands)?))
-    } else if in_sequence {
-        if in_output_redirect {
-            final_commands.push(Box::new(OutputRedirect::new(commands, tokens.join(""))?));
-        } else if in_input_redirect {
-            final_commands.push(Box::new(InputRedirect::new(commands, tokens.join(""))?));
-        } else if in_output_redirect_append {
-            final_commands.push(Box::new(OutputRedirectAppend::new(
-                commands,
-                tokens.join(""),
-            )?));
-        } else if !tokens.is_empty() {
-            final_commands.push(runnable(tokens)?);
-        }
-        Ok(Box::new(Sequence::new(final_commands)?))
-    } else if in_output_redirect {
-        Ok(Box::new(OutputRedirect::new(commands, tokens.join(""))?))
-    } else if in_input_redirect {
-        Ok(Box::new(InputRedirect::new(commands, tokens.join(""))?))
-    } else if in_output_redirect_append {
-        Ok(Box::new(OutputRedirectAppend::new(
-            commands,
-            tokens.join(""),
-        )?))
-    } else {
-        Ok(runnable(tokens)?)
+    // If there is only one command, return it
+    if final_commands.len() == 1 {
+        return Ok(final_commands.remove(0));
     }
+    Ok(Box::new(Sequence::new(final_commands)?))
+}
+
+fn add_token(tokens: &mut Vec<String>, token: &mut String) {
+    if !token.is_empty() {
+        tokens.push(token.to_string());
+        token.clear();
+    }
+}
+
+fn create_command(tokens: &mut Vec<String>) -> Result<ShellCommandBox, Box<dyn Error>> {
+    let new_cmd = cmd(tokens.clone())?;
+    tokens.clear();
+    Ok(new_cmd)
+}
+
+// Output Redirect
+fn create_oredirect(
+    cmd: ShellCommandBox,
+    tokens: &mut Vec<String>,
+) -> Result<OutputRedirect, Box<dyn Error>> {
+    let new_oredirect = OutputRedirect::new(vec![cmd], tokens.join(""))?;
+    tokens.clear();
+    Ok(new_oredirect)
+}
+
+// Input Redirect
+fn create_iredirect(
+    cmd: ShellCommandBox,
+    tokens: &mut Vec<String>,
+) -> Result<InputRedirect, Box<dyn Error>> {
+    let new_iredirect = InputRedirect::new(vec![cmd], tokens.join(""))?;
+    tokens.clear();
+    Ok(new_iredirect)
+}
+
+// Output Redirect Append
+fn create_aredirect(
+    cmd: ShellCommandBox,
+    tokens: &mut Vec<String>,
+) -> Result<OutputRedirectAppend, Box<dyn Error>> {
+    let new_oredirect_append = OutputRedirectAppend::new(vec![cmd], tokens.join(""))?;
+    tokens.clear();
+    Ok(new_oredirect_append)
+}
+
+fn create_pipeline(cmds: &mut ShellCommandBoxes) -> Result<RunnableBox, Box<dyn Error>> {
+    let new_pipeline = Pipeline::new(cmds.clone())?;
+    cmds.clear();
+    Ok(Box::new(new_pipeline))
 }

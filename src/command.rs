@@ -26,7 +26,7 @@ pub fn runnable(tokens: Vec<String>) -> Result<Box<dyn Runnable>, Box<dyn Error>
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct BuiltinCommand {
     tokens: Vec<String>,
 }
@@ -83,7 +83,7 @@ impl ShellCommand for BuiltinCommand {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ExternalCommand {
     tokens: Vec<String>,
 }
