@@ -8,6 +8,21 @@ use std::os::unix::io::FromRawFd;
 use std::process::ChildStdout;
 use std::process::Stdio;
 
+#[derive(Clone, PartialEq)]
+pub enum RedirectType {
+    Output,
+    OutputAppend,
+    Input,
+    None,
+}
+
+pub enum Redirect {
+    Output(OutputRedirect),
+    OutputAppend(OutputRedirectAppend),
+    Input(InputRedirect),
+    None,
+}
+
 #[derive(Clone)]
 pub struct OutputRedirect {
     commands: Vec<Box<dyn ShellCommand>>,
