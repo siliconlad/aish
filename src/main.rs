@@ -6,11 +6,14 @@ pub mod sequence;
 pub mod tokenize;
 pub mod traits;
 
+use home::home_dir;
 use rustyline::error::ReadlineError;
 use rustyline::{DefaultEditor, Result};
 
 fn main() -> Result<()> {
     let mut rl = DefaultEditor::new()?;
+    let history = home_dir().unwrap().join(".aish_history");
+    let _ = rl.load_history(history.as_path());
     loop {
         let readline = rl.readline("> ");
         let mut buffer = match readline {
@@ -45,5 +48,6 @@ fn main() -> Result<()> {
             Err(e) => eprintln!("{}", e),
         }
     }
+    let _ = rl.save_history(history.as_path());
     Ok(())
 }

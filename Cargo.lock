@@ -6,6 +6,7 @@ version = 3
 name = "aish"
 version = "0.1.0"
 dependencies = [
+ "home",
  "nix 0.29.0",
  "rustyline",
 ]
