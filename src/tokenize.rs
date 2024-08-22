@@ -35,15 +35,14 @@ pub fn tokenize(input: &mut String) -> Result<Box<dyn Runnable>, Box<dyn Error>>
             ';' => {
                 tokens.push(current_token);
                 current_token = String::new();
+                tokens.retain(|x| !x.is_empty());
                 if in_pipeline {
-                    tokens.retain(|x| !x.is_empty());
                     commands.push(cmd(tokens)?);
                     tokens = Vec::<String>::new();
                     final_commands.push(Box::new(Pipeline::new(commands)?));
                     commands = Vec::<Box<dyn ShellCommand>>::new();
                     in_pipeline = false;
                 } else {
-                    tokens.retain(|x| !x.is_empty());
                     final_commands.push(runnable(tokens)?);
                     tokens = Vec::<String>::new();
                 }
