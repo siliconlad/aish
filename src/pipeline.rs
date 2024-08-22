@@ -7,6 +7,7 @@ use std::os::fd::FromRawFd;
 use std::os::fd::IntoRawFd;
 use std::process::Stdio;
 
+#[derive(Clone)]
 pub struct Pipeline {
     commands: Vec<Box<dyn ShellCommand>>,
 }

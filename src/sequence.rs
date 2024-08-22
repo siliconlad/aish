@@ -2,6 +2,7 @@ use crate::traits::Runnable;
 use std::error::Error;
 use std::ops::Index;
 
+#[derive(Clone)]
 pub struct Sequence {
     commands: Vec<Box<dyn Runnable>>,
 }
