@@ -153,6 +153,7 @@ pub fn tokenize(input: &mut String) -> Result<Box<dyn Runnable>, Box<dyn Error>>
                 in_sequence = true;
             }
             '|' => {
+                debug!("Found pipe |");
                 tokens.retain(|x| !x.is_empty());
                 if in_output_redirect {
                     let prev_cmd = commands.remove(commands.len() - 1);
@@ -182,6 +183,7 @@ pub fn tokenize(input: &mut String) -> Result<Box<dyn Runnable>, Box<dyn Error>>
                 in_pipeline = true;
             }
             '\\' => {
+                debug!("Found backslash \\");
                 if !in_quotes {
                     escaped = !escaped;
                 } else {
@@ -189,6 +191,7 @@ pub fn tokenize(input: &mut String) -> Result<Box<dyn Runnable>, Box<dyn Error>>
                 }
             }
             '\'' => {
+                debug!("Found single quote \'");
                 if in_double_quotes {
                     current_token.push(c);
                 } else if !escaped {
@@ -199,6 +202,7 @@ pub fn tokenize(input: &mut String) -> Result<Box<dyn Runnable>, Box<dyn Error>>
                 escaped = false;
             }
             '"' => {
+                debug!("Found double quote \"");
                 if in_quotes {
                     current_token.push(c);
                 } else if !escaped {
@@ -209,6 +213,7 @@ pub fn tokenize(input: &mut String) -> Result<Box<dyn Runnable>, Box<dyn Error>>
                 escaped = false;
             }
             ' ' => {
+                debug!("Found whitespace");
                 if in_quotes || in_double_quotes || escaped {
                     current_token.push(c);
                 } else {

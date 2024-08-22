@@ -6,11 +6,26 @@ pub mod sequence;
 pub mod tokenize;
 pub mod traits;
 
+#[macro_use]
+extern crate log;
+extern crate simplelog;
+
 use home::home_dir;
 use rustyline::error::ReadlineError;
 use rustyline::{DefaultEditor, Result};
+use simplelog::{Config, LevelFilter, WriteLogger};
+use std::fs::OpenOptions;
 
 fn main() -> Result<()> {
+    // Setup logging
+    let log_path = home_dir().unwrap().join(".aish_log");
+    let log_file = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(log_path)?;
+    WriteLogger::init(LevelFilter::Debug, Config::default(), log_file).unwrap();
+
+    // Setup readline
     let mut rl = DefaultEditor::new()?;
     let history = home_dir().unwrap().join(".aish_history");
     let _ = rl.load_history(history.as_path());
@@ -30,6 +45,7 @@ fn main() -> Result<()> {
         };
 
         // Convert the input into a command
+        debug!("Tokenizing...");
         let tokenized = match tokenize::tokenize(&mut buffer) {
             Ok(tokenized) => tokenized,
             Err(e) => {
@@ -37,6 +53,7 @@ fn main() -> Result<()> {
                 continue;
             }
         };
+        debug!("Finished tokenizing...running command(s)");
 
         // Run the command
         match tokenized.run() {
