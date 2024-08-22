@@ -5,7 +5,7 @@ use std::io::{BufReader, Read};
 use std::ops::Index;
 use std::os::fd::FromRawFd;
 use std::os::fd::IntoRawFd;
-use std::process::ChildStdout;
+use std::process::Stdio;
 
 pub struct Pipeline {
     commands: Vec<Box<dyn ShellCommand>>,
@@ -22,19 +22,27 @@ impl Pipeline {
 
 impl Runnable for Pipeline {
     fn run(&self) -> Result<String, Box<dyn Error>> {
-        let mut prev_stdout: Option<ChildStdout> = None;
+        let mut prev_stdout: Option<Stdio> = Some(Stdio::inherit());
         for (i, command) in self.commands.iter().enumerate() {
-            prev_stdout = Some(command.pipe(prev_stdout.take())?);
-
+            let prev_stdout_ = match prev_stdout.take() {
+                Some(stdout) => stdout,
+                None => Stdio::null(),
+            };
+            let cmd_stdout = command.pipe(Some(prev_stdout_))?;
             if i == self.commands.len() - 1 {
                 let mut output = String::new();
-                let mut reader = BufReader::new(unsafe {
-                    File::from_raw_fd(prev_stdout.take().unwrap().into_raw_fd())
-                });
-                reader.read_to_string(&mut output)?;
-                let trimmed = output.trim_end_matches('\n').to_string();
-                println!("{}", trimmed);
+                if let Some(stdout) = cmd_stdout {
+                    let mut reader =
+                        BufReader::new(unsafe { File::from_raw_fd(stdout.into_raw_fd()) });
+                    reader.read_to_string(&mut output)?;
+                    let trimmed = output.trim_end_matches('\n').to_string();
+                    if !trimmed.is_empty() {
+                        println!("{}", trimmed);
+                    }
+                }
                 return Ok("".to_string());
+            } else {
+                prev_stdout = cmd_stdout.map(Stdio::from);
             }
         }
         Ok("".to_string())
