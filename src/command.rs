@@ -61,7 +61,7 @@ impl ShellCommand for BuiltinCommand {
         self.tokens[1..].iter().map(|s| s.as_str()).collect()
     }
 
-    fn pipe(&self, _stdin: Option<ChildStdout>) -> Result<ChildStdout, Box<dyn Error>> {
+    fn pipe(&self, _stdin: Option<ChildStdout>) -> Result<Option<ChildStdout>, Box<dyn Error>> {
         let (pipe_out_r, pipe_out_w) = pipe()?;
         let (pipe_err_r, pipe_err_w) = pipe()?;
 
@@ -69,7 +69,7 @@ impl ShellCommand for BuiltinCommand {
             ForkResult::Parent { child: _ } => {
                 drop(pipe_out_w);
                 drop(pipe_err_w);
-                Ok(ChildStdout::from(pipe_out_r))
+                Ok(Some(ChildStdout::from(pipe_out_r)))
             }
             ForkResult::Child => {
                 drop(pipe_out_r);
@@ -120,7 +120,7 @@ impl ShellCommand for ExternalCommand {
         self.tokens[1..].iter().map(|s| s.as_str()).collect()
     }
 
-    fn pipe(&self, stdin: Option<ChildStdout>) -> Result<ChildStdout, Box<dyn Error>> {
+    fn pipe(&self, stdin: Option<ChildStdout>) -> Result<Option<ChildStdout>, Box<dyn Error>> {
         let input = match stdin {
             Some(input) => Stdio::from(input),
             None => Stdio::inherit(),
@@ -136,6 +136,6 @@ impl ShellCommand for ExternalCommand {
             Err(e) => return Err(e.into()),
         };
 
-        Ok(child.stdout.take().unwrap())
+        Ok(child.stdout.take())
     }
 }
