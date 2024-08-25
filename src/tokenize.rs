@@ -151,6 +151,10 @@ pub fn tokenize(input: &mut String) -> Result<RunnableBox, Box<dyn Error>> {
                     current_token.push(c);
                 } else if !escaped {
                     in_double_quotes = !in_double_quotes;
+                    if !in_double_quotes && !current_token.is_empty() {
+                        tokens.push(format!("LLM:{}", current_token));
+                        current_token.clear();
+                    }
                 } else {
                     current_token.push(c);
                 }

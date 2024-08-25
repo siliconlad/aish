@@ -5,6 +5,7 @@ pub mod redirect;
 pub mod sequence;
 pub mod tokenize;
 pub mod traits;
+pub mod openai_client;
 
 #[macro_use]
 extern crate log;
