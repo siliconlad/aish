@@ -56,7 +56,7 @@ pub fn export(args: Vec<&str>) -> Result<String, Box<dyn Error>> {
         return Err("export: too many arguments".into());
     } else {
         let (key, value) = args.first().unwrap().split_once("=").unwrap();
-        unsafe { std::env::set_var(key, value)};
+        unsafe { std::env::set_var(key, value) };
         Ok("".to_string())
     }
 }
