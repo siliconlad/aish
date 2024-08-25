@@ -1,6 +1,6 @@
 use std::error::Error;
 
-const BUILTINS: &[&str] = &["cd", "pwd", "exit", "echo"];
+const BUILTINS: &[&str] = &["cd", "pwd", "exit", "echo", "export"];
 
 pub fn is_builtin(cmd: &str) -> bool {
     BUILTINS.contains(&cmd)
@@ -12,6 +12,7 @@ pub fn builtin(cmd: &str, args: Vec<&str>) -> Result<String, Box<dyn Error>> {
         "pwd" => pwd(),
         "exit" => exit(),
         "echo" => echo(args),
+        "export" => export(args),
         _ => Err(format!("{}: command not found", cmd).into()),
     }
 }
@@ -43,4 +44,19 @@ pub fn exit() -> Result<String, Box<dyn Error>> {
 pub fn echo(msg: Vec<&str>) -> Result<String, Box<dyn Error>> {
     println!("{}", msg.join(" "));
     Ok("".to_string())
+}
+
+pub fn export(args: Vec<&str>) -> Result<String, Box<dyn Error>> {
+    if args.is_empty() {
+        for (key, value) in std::env::vars() {
+            println!("{}=\"{}\"", key, value);
+        }
+        Ok("".to_string())
+    } else if args.len() > 1 {
+        return Err("export: too many arguments".into());
+    } else {
+        let (key, value) = args.first().unwrap().split_once("=").unwrap();
+        unsafe { std::env::set_var(key, value)};
+        Ok("".to_string())
+    }
 }
