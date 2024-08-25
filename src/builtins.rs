@@ -1,6 +1,6 @@
 use std::error::Error;
 
-const BUILTINS: &[&str] = &["cd", "pwd", "exit", "echo", "export"];
+const BUILTINS: &[&str] = &["cd", "pwd", "exit", "echo", "export", "unset"];
 
 pub fn is_builtin(cmd: &str) -> bool {
     BUILTINS.contains(&cmd)
@@ -13,6 +13,7 @@ pub fn builtin(cmd: &str, args: Vec<&str>) -> Result<String, Box<dyn Error>> {
         "exit" => exit(),
         "echo" => echo(args),
         "export" => export(args),
+        "unset" => unset(args),
         _ => Err(format!("{}: command not found", cmd).into()),
     }
 }
@@ -59,4 +60,11 @@ pub fn export(args: Vec<&str>) -> Result<String, Box<dyn Error>> {
         unsafe { std::env::set_var(key, value) };
         Ok("".to_string())
     }
+}
+
+pub fn unset(args: Vec<&str>) -> Result<String, Box<dyn Error>> {
+    for arg in args {
+        unsafe { std::env::remove_var(arg) };
+    }
+    Ok("".to_string())
 }
