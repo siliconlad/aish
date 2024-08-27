@@ -45,7 +45,7 @@ impl OpenAIClient {
 
     pub async fn generate_text(&self, prompt: &str, max_tokens: u16) -> Result<String, Box<dyn std::error::Error>> {
         let request = OpenAIRequest {
-            model: "gpt-3.5-turbo".to_string(),
+            model: "gpt-4o-mini".to_string(), // TODO: make this configurable
             messages: vec![
                 Message {
                     role: "user".to_string(),

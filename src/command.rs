@@ -2,56 +2,71 @@ use crate::builtins::builtin;
 use crate::builtins::is_builtin;
 use crate::traits::{Runnable, ShellCommand};
 use crate::openai_client::OpenAIClient;
+use crate::token::Token;
 
 use nix::unistd::{dup2, fork, pipe, ForkResult};
 use std::error::Error;
 use std::process::{ChildStdout, Command, Stdio};
 use std::io::{BufReader, Read};
-use std::os::fd::AsRawFd;
+use std::os::fd::{FromRawFd, AsRawFd, IntoRawFd};
 use tokio::runtime::Runtime;
 use std::env;
+use std::fs::File;
 
-pub fn cmd(tokens: Vec<String>) -> Result<Box<dyn ShellCommand>, Box<dyn Error>> {
+pub fn cmd(tokens: Vec<Token>) -> Result<Box<dyn ShellCommand>, Box<dyn Error>> {
     if tokens.is_empty() {
-        Err("Tokens cannot be empty".into())
-    } else if is_llm(&tokens[0]) {
-        let prompt = tokens[0].replacen("llm:", "", 1);
-        let openai_client = if let Ok(api_key) = env::var("OPENAI_API_KEY") {
-            OpenAIClient::new(api_key)
-        } else {
-            return Err("OPENAI_API_KEY not set".into());
-        };
-        Ok(Box::new(LlmCommand::new(prompt, openai_client)))
-    } else if is_builtin(&tokens[0]) {
-        Ok(Box::new(BuiltinCommand::new(tokens)?))
-    } else {
-        Ok(Box::new(ExternalCommand::new(tokens)?))
+        return Err("Tokens cannot be empty".into());
+    }
+
+    match &tokens[..] {
+        [Token::DoubleQuoted(prompt)] => {
+            debug!("Detected LLM command with tokens: {:?}", tokens);
+            let openai_client = if let Ok(api_key) = env::var("OPENAI_API_KEY") {
+                OpenAIClient::new(api_key)
+            } else {
+                return Err("OPENAI_API_KEY not set".into());
+            };
+            Ok(Box::new(LlmCommand::new(prompt.clone(), openai_client)))
+        }
+        [Token::Plain(cmd), ..] if is_builtin(cmd) => {
+            debug!("Detected builtin command: {:?}", tokens);
+            let string_tokens: Vec<String> = tokens.into_iter().map(|t| t.to_string()).collect();
+            Ok(Box::new(BuiltinCommand::new(string_tokens)?))
+        }
+        _ => {
+            debug!("Detected external command: {:?}", tokens);
+            let string_tokens: Vec<String> = tokens.into_iter().map(|t| t.to_string()).collect();
+            Ok(Box::new(ExternalCommand::new(string_tokens)?))
+        }
     }
 }
 
-pub fn runnable(tokens: Vec<String>) -> Result<Box<dyn Runnable>, Box<dyn Error>> {
+pub fn runnable(tokens: Vec<Token>) -> Result<Box<dyn Runnable>, Box<dyn Error>> {
     if tokens.is_empty() {
-        Err("Tokens cannot be empty".into())
-    } else if is_llm(&tokens[0]) {
-        let prompt = tokens[0].replacen("llm:", "", 1);
-        let openai_client = if let Ok(api_key) = env::var("OPENAI_API_KEY") {
-            OpenAIClient::new(api_key)
-        } else {
-            return Err("OPENAI_API_KEY not set".into());
-        };
-        Ok(Box::new(LlmCommand::new(prompt, openai_client)))
-    } else if is_builtin(&tokens[0]) {
-        Ok(Box::new(BuiltinCommand::new(tokens)?))
-    } else {
-        Ok(Box::new(ExternalCommand::new(tokens)?))
+        return Err("Tokens cannot be empty".into());
     }
-}
 
-fn is_llm(tokens: &String) -> bool {
-    if tokens.starts_with("LLM:") {
-        return true;
+    match &tokens[..] {
+        [Token::DoubleQuoted(prompt)] => {
+            debug!("Detected LLM command with tokens: {:?}", tokens);
+            let openai_client = if let Ok(api_key) = env::var("OPENAI_API_KEY") {
+                OpenAIClient::new(api_key)
+            } else {
+                return Err("OPENAI_API_KEY not set".into());
+            };
+            Ok(Box::new(LlmCommand::new(prompt.clone(), openai_client)))
+        }
+        [Token::Plain(cmd), ..] if is_builtin(cmd) => {
+            debug!("Detected builtin command: {:?}", tokens);
+            let string_tokens: Vec<String> = tokens.into_iter().map(|t| t.to_string()).collect();
+            Ok(Box::new(BuiltinCommand::new(string_tokens)?))
+        }
+        _ => {
+            debug!("Detected external command: {:?}", tokens);
+            let string_tokens: Vec<String> = tokens.into_iter().map(|t| t.to_string()).collect();
+            Ok(Box::new(ExternalCommand::new(string_tokens)?))
+        }
     }
-    return false;
 }
 
 #[derive(Debug, Clone)]
@@ -183,12 +198,14 @@ impl LlmCommand {
     }
 
     pub async fn generate_response(&self, input: Option<String>) -> Result<String, Box<dyn Error>> {
+        debug!("Received input: {:?}", input);
         let context = if let Some(input) = input {
             format!("{}: {}", self.prompt, input)
         } else {
             self.prompt.clone()
         };
-        let output = self.openai_client.generate_text(&context, 100).await?;
+        let output = self.openai_client.generate_text(&context, 100).await?; // TODO: make this configurable
+        debug!("Generated response: {}", output);
         Ok(output)
     }
 }
@@ -211,45 +228,19 @@ impl ShellCommand for LlmCommand {
     }
 
     fn pipe(&self, stdin: Option<Stdio>) -> Result<Option<ChildStdout>, Box<dyn Error>> {
-        let (pipe_out_r, pipe_out_w) = pipe()?;
-        let (pipe_err_r, pipe_err_w) = pipe()?;
+        // let mut input = String::new();
+        // if let Some(stdinput) = stdin {
+        //     let hi: ChildStdout = stdinput.into();
+        //     let mut reader =
+        //         BufReader::new(unsafe { File::from_raw_fd(hi.into_raw_fd()) });
+        //     reader.read_to_string(&mut input)?;
+        // }
 
-        match unsafe { fork()? } {
-            ForkResult::Parent { child: _ } => {
-                drop(pipe_out_w);
-                drop(pipe_err_w);
-                Ok(Some(ChildStdout::from(pipe_out_r)))
-            }
-            ForkResult::Child => {
-                drop(pipe_out_r);
-                drop(pipe_err_r);
-                dup2(pipe_out_w.as_raw_fd(), 1)?;
-                dup2(pipe_err_w.as_raw_fd(), 2)?;
-
-                let output = if let Some(stdin) = stdin {
-                    let mut child = Command::new("cat")
-                        .stdin(stdin)
-                        .stdout(Stdio::piped())
-                        .spawn()?;
-
-                    let stdout = child.stdout.take().ok_or("Failed to capture stdout")?;
-
-                    let mut reader = BufReader::new(stdout);
-                    let mut input = String::new();
-                    reader.read_to_string(&mut input)?;
-
-                    let runtime = Runtime::new().unwrap();
-                    runtime.block_on(self.generate_response(Some(input)))?
-                } else {
-                    let runtime = Runtime::new().unwrap();
-                    runtime.block_on(self.generate_response(None))?
-                };
-
-                // Write the output to stdout, which is piped
-                println!("{}", output);
-
-                std::process::exit(0);
-            }
-        }
+        // let runtime = Runtime::new().unwrap();
+        // let response = runtime.block_on(self.generate_response(Some(input)))?;
+        println!("llm said hello");
+        let mut child = Command::new("cat").stdin(stdin.unwrap()).stdout(Stdio::piped()).spawn()?;
+        let stdout = child.stdout.take().ok_or("Failed to capture stdout")?;
+        Ok(Some(stdout))
     }
 }

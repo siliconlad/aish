@@ -6,6 +6,7 @@ pub mod sequence;
 pub mod tokenize;
 pub mod traits;
 pub mod openai_client;
+pub mod token;
 
 #[macro_use]
 extern crate log;
