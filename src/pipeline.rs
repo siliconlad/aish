@@ -5,7 +5,7 @@ use std::io::{BufReader, Read};
 use std::ops::Index;
 use std::os::fd::FromRawFd;
 use std::os::fd::IntoRawFd;
-use std::process::Stdio;
+use std::process::ChildStdout;
 
 #[derive(Clone)]
 pub struct Pipeline {
@@ -23,13 +23,13 @@ impl Pipeline {
 
 impl Runnable for Pipeline {
     fn run(&self) -> Result<String, Box<dyn Error>> {
-        let mut prev_stdout: Option<Stdio> = Some(Stdio::inherit());
+        let mut prev_stdout: Option<ChildStdout> = None;
         for (i, command) in self.commands.iter().enumerate() {
-            let prev_stdout_ = match prev_stdout.take() {
-                Some(stdout) => stdout,
-                None => Stdio::null(),
-            };
-            let cmd_stdout = command.pipe(Some(prev_stdout_))?;
+            // let prev_stdout_ = match prev_stdout.take() {
+            //     Some(stdout) => Stdio::from(stdout),
+            //     None => Stdio::null(),
+            // };
+            let cmd_stdout = command.pipe(prev_stdout.take())?;
             if i == self.commands.len() - 1 {
                 let mut output = String::new();
                 if let Some(stdout) = cmd_stdout {
@@ -43,7 +43,7 @@ impl Runnable for Pipeline {
                 }
                 return Ok("".to_string());
             } else {
-                prev_stdout = cmd_stdout.map(Stdio::from);
+                prev_stdout = cmd_stdout;
             }
         }
         Ok("".to_string())

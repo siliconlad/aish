@@ -6,6 +6,7 @@ use std::io::Read;
 use std::os::fd::IntoRawFd;
 use std::os::unix::io::FromRawFd;
 use std::process::ChildStdout;
+use std::process::Command;
 use std::process::Stdio;
 
 #[derive(Clone, PartialEq)]
@@ -69,7 +70,7 @@ impl ShellCommand for OutputRedirect {
         self.commands[0].args()
     }
 
-    fn pipe(&self, stdin: Option<Stdio>) -> Result<Option<ChildStdout>, Box<dyn Error>> {
+    fn pipe(&self, stdin: Option<ChildStdout>) -> Result<Option<ChildStdout>, Box<dyn Error>> {
         let mut file = self.open_file()?;
         let stdout = self.commands[0].pipe(stdin)?;
         if let Some(mut stdout) = stdout {
@@ -128,7 +129,7 @@ impl ShellCommand for OutputRedirectAppend {
         self.commands[0].args()
     }
 
-    fn pipe(&self, stdin: Option<Stdio>) -> Result<Option<ChildStdout>, Box<dyn Error>> {
+    fn pipe(&self, stdin: Option<ChildStdout>) -> Result<Option<ChildStdout>, Box<dyn Error>> {
         let mut file = self.open_file()?;
         let stdout = self.commands[0].pipe(stdin)?;
         if let Some(mut stdout) = stdout {
@@ -163,7 +164,12 @@ impl Runnable for InputRedirect {
     fn run(&self) -> Result<String, Box<dyn Error>> {
         let file = File::open(&self.input_file)?;
         let file_fd = file.into_raw_fd();
-        let input = unsafe { Stdio::from_raw_fd(file_fd) };
+
+        let mut child = Command::new("cat")
+            .stdin(unsafe { Stdio::from_raw_fd(file_fd) })
+            .stdout(Stdio::piped())
+            .spawn()?;
+        let input = child.stdout.take().unwrap();
 
         let stdout = self.commands[0].pipe(Some(input))?;
         if let Some(mut stdout) = stdout {
@@ -184,10 +190,15 @@ impl ShellCommand for InputRedirect {
         self.commands[0].args()
     }
 
-    fn pipe(&self, _stdin: Option<Stdio>) -> Result<Option<ChildStdout>, Box<dyn Error>> {
+    fn pipe(&self, _stdin: Option<ChildStdout>) -> Result<Option<ChildStdout>, Box<dyn Error>> {
         let file = File::open(&self.input_file)?;
         let file_fd = file.into_raw_fd();
-        let input = unsafe { Stdio::from_raw_fd(file_fd) };
+
+        let mut child = Command::new("cat")
+            .stdin(unsafe { Stdio::from_raw_fd(file_fd) })
+            .stdout(Stdio::piped())
+            .spawn()?;
+        let input = child.stdout.take().unwrap();
 
         let stdout = self.commands[0].pipe(Some(input))?;
         Ok(stdout)
