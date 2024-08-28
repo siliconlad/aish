@@ -104,10 +104,15 @@ impl Runnable for ExternalCommand {
             Err(e) => return Err(e.into()),
         };
         match child.wait() {
-            Ok(_) => {}
-            Err(e) => return Err(e.into()),
+            Ok(code) => {
+                if code.success() {
+                    Ok("".to_string())
+                } else {
+                    Err(format!("{}", code).into())
+                }
+            }
+            Err(e) => Err(e.into()),
         }
-        Ok("".to_string())
     }
 }
 
