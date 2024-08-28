@@ -25,10 +25,6 @@ impl Runnable for Pipeline {
     fn run(&self) -> Result<String, Box<dyn Error>> {
         let mut prev_stdout: Option<ChildStdout> = None;
         for (i, command) in self.commands.iter().enumerate() {
-            // let prev_stdout_ = match prev_stdout.take() {
-            //     Some(stdout) => Stdio::from(stdout),
-            //     None => Stdio::null(),
-            // };
             let cmd_stdout = command.pipe(prev_stdout.take())?;
             if i == self.commands.len() - 1 {
                 let mut output = String::new();
