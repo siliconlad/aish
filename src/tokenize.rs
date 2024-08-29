@@ -6,8 +6,8 @@ use crate::redirect::{
     InputRedirect, OutputRedirect, OutputRedirectAppend, Redirect, RedirectType,
 };
 use crate::sequence::Sequence;
-use crate::traits::{Runnable, ShellCommand};
 use crate::token::Token;
+use crate::traits::{Runnable, ShellCommand};
 
 // Type aliases for readability
 type ShellCommandBox = Box<dyn ShellCommand>;

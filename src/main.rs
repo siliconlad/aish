@@ -1,12 +1,12 @@
 pub mod builtins;
 pub mod command;
+pub mod openai_client;
 pub mod pipeline;
 pub mod redirect;
 pub mod sequence;
+pub mod token;
 pub mod tokenize;
 pub mod traits;
-pub mod openai_client;
-pub mod token;
 
 #[macro_use]
 extern crate log;

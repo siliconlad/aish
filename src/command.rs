@@ -1,17 +1,16 @@
 use crate::builtins::builtin;
 use crate::builtins::is_builtin;
-use crate::traits::{Runnable, ShellCommand};
 use crate::openai_client::OpenAIClient;
 use crate::token::Token;
+use crate::traits::{Runnable, ShellCommand};
 
 use nix::unistd::{dup2, fork, pipe, ForkResult};
-use std::error::Error;
-use std::process::{ChildStdout, Command, Stdio};
-use std::io::{BufReader, Read};
-use std::os::fd::{FromRawFd, AsRawFd, IntoRawFd};
-use tokio::runtime::Runtime;
 use std::env;
-use std::fs::File;
+use std::error::Error;
+use std::io::Read;
+use std::os::fd::AsRawFd;
+use std::process::{ChildStdout, Command, Stdio};
+use tokio::runtime::Runtime;
 
 pub fn cmd(tokens: Vec<Token>) -> Result<Box<dyn ShellCommand>, Box<dyn Error>> {
     if tokens.is_empty() {
@@ -227,20 +226,20 @@ impl ShellCommand for LlmCommand {
         vec![&self.prompt]
     }
 
-    fn pipe(&self, stdin: Option<Stdio>) -> Result<Option<ChildStdout>, Box<dyn Error>> {
-        // let mut input = String::new();
-        // if let Some(stdinput) = stdin {
-        //     let hi: ChildStdout = stdinput.into();
-        //     let mut reader =
-        //         BufReader::new(unsafe { File::from_raw_fd(hi.into_raw_fd()) });
-        //     reader.read_to_string(&mut input)?;
-        // }
+    fn pipe(&self, stdin: Option<ChildStdout>) -> Result<Option<ChildStdout>, Box<dyn Error>> {
+        let mut input = String::new();
+        if let Some(mut stdin) = stdin {
+            stdin.read_to_string(&mut input)?;
+        }
 
-        // let runtime = Runtime::new().unwrap();
-        // let response = runtime.block_on(self.generate_response(Some(input)))?;
-        println!("llm said hello");
-        let mut child = Command::new("cat").stdin(stdin.unwrap()).stdout(Stdio::piped()).spawn()?;
-        let stdout = child.stdout.take().ok_or("Failed to capture stdout")?;
-        Ok(Some(stdout))
+        let runtime = Runtime::new()?;
+        let response = runtime.block_on(self.generate_response(Some(input)))?;
+
+        let mut child = Command::new("echo")
+            .arg(response)
+            .stdout(Stdio::piped())
+            .spawn()?;
+
+        Ok(child.stdout.take())
     }
 }

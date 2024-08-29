@@ -1,3 +1,5 @@
+use std::fmt;
+
 #[derive(Clone, Debug)]
 pub enum Token {
     Plain(String),
@@ -5,10 +7,10 @@ pub enum Token {
     SingleQuoted(String),
 }
 
-impl Token {
-    pub fn to_string(&self) -> String {
+impl fmt::Display for Token {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Token::Plain(s) | Token::DoubleQuoted(s) | Token::SingleQuoted(s) => s.clone(),
+            Token::Plain(s) | Token::DoubleQuoted(s) | Token::SingleQuoted(s) => write!(f, "{}", s),
         }
     }
 }
