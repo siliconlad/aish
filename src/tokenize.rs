@@ -143,6 +143,10 @@ pub fn tokenize(input: &mut String) -> Result<RunnableBox, Box<dyn Error>> {
                     current_token.push(c);
                 } else if !escaped {
                     in_quotes = !in_quotes;
+                    if !in_quotes && !current_token.is_empty() {
+                        tokens.push(Token::SingleQuoted(current_token.clone()));
+                        current_token.clear();
+                    }
                 } else {
                     current_token.push(c);
                 }
