@@ -6,6 +6,7 @@ use crate::redirect::{
     InputRedirect, OutputRedirect, OutputRedirectAppend, Redirect, RedirectType,
 };
 use crate::sequence::Sequence;
+use crate::token::Token;
 use crate::traits::{Runnable, ShellCommand};
 
 // Type aliases for readability
@@ -40,7 +41,7 @@ pub fn tokenize(input: &mut String) -> Result<RunnableBox, Box<dyn Error>> {
 
     // Accumulators
     let mut current_token = String::new();
-    let mut tokens = Vec::<String>::new();
+    let mut tokens = Vec::<Token>::new();
     let mut commands = Vec::<Box<dyn ShellCommand>>::new();
     let mut r_cmd: Option<Box<dyn ShellCommand>> = None;
     let mut final_commands = Vec::<Box<dyn Runnable>>::new();
@@ -93,6 +94,7 @@ pub fn tokenize(input: &mut String) -> Result<RunnableBox, Box<dyn Error>> {
                         });
                         r_type = RedirectType::None;
                     } else {
+                        debug!("Creating command from tokens: {:?}", tokens);
                         commands.push(create_command(&mut tokens)?);
                     }
                     final_commands.push(create_pipeline(&mut commands)?);
@@ -122,6 +124,7 @@ pub fn tokenize(input: &mut String) -> Result<RunnableBox, Box<dyn Error>> {
                     });
                     r_type = RedirectType::None;
                 } else {
+                    debug!("Creating command from tokens: {:?}", tokens);
                     commands.push(create_command(&mut tokens)?);
                 }
                 in_pipeline = true;
@@ -140,6 +143,10 @@ pub fn tokenize(input: &mut String) -> Result<RunnableBox, Box<dyn Error>> {
                     current_token.push(c);
                 } else if !escaped {
                     in_quotes = !in_quotes;
+                    if !in_quotes && !current_token.is_empty() {
+                        tokens.push(Token::SingleQuoted(current_token.clone()));
+                        current_token.clear();
+                    }
                 } else {
                     current_token.push(c);
                 }
@@ -151,6 +158,10 @@ pub fn tokenize(input: &mut String) -> Result<RunnableBox, Box<dyn Error>> {
                     current_token.push(c);
                 } else if !escaped {
                     in_double_quotes = !in_double_quotes;
+                    if !in_double_quotes && !current_token.is_empty() {
+                        tokens.push(Token::DoubleQuoted(current_token.clone()));
+                        current_token.clear();
+                    }
                 } else {
                     current_token.push(c);
                 }
@@ -179,14 +190,14 @@ pub fn tokenize(input: &mut String) -> Result<RunnableBox, Box<dyn Error>> {
     Ok(Box::new(Sequence::new(final_commands)?))
 }
 
-fn add_token(tokens: &mut Vec<String>, token: &mut String) {
+fn add_token(tokens: &mut Vec<Token>, token: &mut String) {
     if !token.is_empty() {
-        tokens.push(token.to_string());
+        tokens.push(Token::Plain(token.clone()));
         token.clear();
     }
 }
 
-fn create_command(tokens: &mut Vec<String>) -> Result<ShellCommandBox, Box<dyn Error>> {
+fn create_command(tokens: &mut Vec<Token>) -> Result<ShellCommandBox, Box<dyn Error>> {
     let new_cmd = cmd(tokens.clone())?;
     tokens.clear();
     Ok(new_cmd)
@@ -194,10 +205,10 @@ fn create_command(tokens: &mut Vec<String>) -> Result<ShellCommandBox, Box<dyn E
 
 fn create_redirect(
     cmd: ShellCommandBox,
-    tokens: &mut Vec<String>,
+    tokens: &mut Vec<Token>,
     r_type: &RedirectType,
 ) -> Result<Redirect, Box<dyn Error>> {
-    let token = tokens.join("");
+    let token = tokens.iter().map(|t| t.to_string()).collect::<String>();
     let new_redirect = match r_type {
         RedirectType::Output => Ok(Redirect::Output(OutputRedirect::new(vec![cmd], token)?)),
         RedirectType::OutputAppend => Ok(Redirect::OutputAppend(OutputRedirectAppend::new(
