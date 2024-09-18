@@ -1,4 +1,5 @@
 use std::error::Error;
+use std::env;
 
 use crate::command::{cmd, runnable};
 use crate::pipeline::Pipeline;
@@ -40,8 +41,10 @@ pub fn tokenize(input: &mut String) -> Result<RunnableBox, Box<dyn Error>> {
     let mut in_and_sequence = false;
     let mut r_type = RedirectType::None;
     let mut escaped = false;
+    let mut in_variable = false;
 
     // Accumulators
+    let mut var_buffer = String::new();
     let mut current_token = String::new();
     let mut tokens = Vec::<Token>::new();
     let mut commands = Vec::<Box<dyn ShellCommand>>::new();
@@ -52,7 +55,27 @@ pub fn tokenize(input: &mut String) -> Result<RunnableBox, Box<dyn Error>> {
     let cleaned = clean(input);
     for (i, c) in cleaned.chars().enumerate() {
         match c {
+            '$' => {
+                if in_variable {
+                    current_token += &get_var(var_buffer.clone())?;
+                    var_buffer.clear();
+                    in_variable = false;
+                }
+
+                if in_quotes || escaped {
+                    current_token.push(c);
+                } else {
+                    debug!("Found dollar sign $");
+                    in_variable = true;
+                }
+            }
             '&' => {
+                if in_variable {
+                    current_token += &get_var(var_buffer.clone())?;
+                    var_buffer.clear();
+                    in_variable = false;
+                }
+
                 if in_quotes || in_double_quotes || escaped {
                     current_token.push(c);
                 } else if cleaned.chars().nth(i + 1) == Some('&') {
@@ -91,6 +114,12 @@ pub fn tokenize(input: &mut String) -> Result<RunnableBox, Box<dyn Error>> {
             }
             // Input Redirect
             '<' => {
+                if in_variable {
+                    current_token += &get_var(var_buffer.clone())?;
+                    var_buffer.clear();
+                    in_variable = false;
+                }
+
                 if in_quotes || in_double_quotes || escaped {
                     current_token.push(c);
                 } else if r_type == RedirectType::Output || r_type == RedirectType::OutputAppend {
@@ -107,6 +136,12 @@ pub fn tokenize(input: &mut String) -> Result<RunnableBox, Box<dyn Error>> {
             }
             // Output Redirect
             '>' => {
+                if in_variable {
+                    current_token += &get_var(var_buffer.clone())?;
+                    var_buffer.clear();
+                    in_variable = false;
+                }
+
                 if in_quotes || in_double_quotes || escaped {
                     current_token.push(c);
                 } else if r_type == RedirectType::Input {
@@ -126,6 +161,12 @@ pub fn tokenize(input: &mut String) -> Result<RunnableBox, Box<dyn Error>> {
                 }
             }
             ';' => {
+                if in_variable {
+                    current_token += &get_var(var_buffer.clone())?;
+                    var_buffer.clear();
+                    in_variable = false;
+                }
+                
                 if in_quotes || in_double_quotes || escaped {
                     current_token.push(c);
                 } else {
@@ -181,6 +222,12 @@ pub fn tokenize(input: &mut String) -> Result<RunnableBox, Box<dyn Error>> {
                 }
             }
             '|' => {
+                if in_variable {
+                    current_token += &get_var(var_buffer.clone())?;
+                    var_buffer.clear();
+                    in_variable = false;
+                }
+
                 if in_quotes || in_double_quotes || escaped {
                     current_token.push(c);
                 } else if r_type != RedirectType::None {
@@ -200,6 +247,13 @@ pub fn tokenize(input: &mut String) -> Result<RunnableBox, Box<dyn Error>> {
             }
             '\\' => {
                 debug!("Found backslash \\");
+
+                if in_variable {
+                    current_token += &get_var(var_buffer.clone())?;
+                    var_buffer.clear();
+                    in_variable = false;
+                }
+
                 if !in_quotes {
                     escaped = !escaped;
                 } else {
@@ -208,6 +262,13 @@ pub fn tokenize(input: &mut String) -> Result<RunnableBox, Box<dyn Error>> {
             }
             '\'' => {
                 debug!("Found single quote \'");
+
+                if in_variable {
+                    current_token += &get_var(var_buffer.clone())?;
+                    var_buffer.clear();
+                    in_variable = false;
+                }
+
                 if in_double_quotes {
                     current_token.push(c);
                 } else if !escaped {
@@ -223,6 +284,13 @@ pub fn tokenize(input: &mut String) -> Result<RunnableBox, Box<dyn Error>> {
             }
             '"' => {
                 debug!("Found double quote \"");
+
+                if in_variable {
+                    current_token += &get_var(var_buffer.clone())?;
+                    var_buffer.clear();
+                    in_variable = false;
+                }
+
                 if in_quotes {
                     current_token.push(c);
                 } else if !escaped {
@@ -238,6 +306,13 @@ pub fn tokenize(input: &mut String) -> Result<RunnableBox, Box<dyn Error>> {
             }
             ' ' => {
                 debug!("Found whitespace");
+
+                if in_variable {
+                    current_token += &get_var(var_buffer.clone())?;
+                    var_buffer.clear();
+                    in_variable = false;
+                }
+
                 if in_quotes || in_double_quotes || escaped {
                     current_token.push(c);
                 } else {
@@ -246,7 +321,11 @@ pub fn tokenize(input: &mut String) -> Result<RunnableBox, Box<dyn Error>> {
                 escaped = false;
             }
             _ => {
-                current_token.push(c);
+                if in_variable {
+                    var_buffer.push(c);
+                } else {
+                    current_token.push(c);
+                }
                 escaped = false;
             }
         }
@@ -264,6 +343,12 @@ fn add_token(tokens: &mut Vec<Token>, token: &mut String) {
         tokens.push(Token::Plain(token.clone()));
         token.clear();
     }
+}
+
+fn get_var(token: String) -> Result<String, Box<dyn Error>> {
+    debug!("Getting variable: {}", token);
+    let var_value = env::var(&token).unwrap_or("".to_string());
+    Ok(var_value)
 }
 
 fn create_command(tokens: &mut Vec<Token>) -> Result<ShellCommandBox, Box<dyn Error>> {
