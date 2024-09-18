@@ -1,5 +1,5 @@
-use std::error::Error;
 use std::env;
+use std::error::Error;
 
 use crate::command::{cmd, runnable};
 use crate::pipeline::Pipeline;
@@ -166,7 +166,7 @@ pub fn tokenize(input: &mut String) -> Result<RunnableBox, Box<dyn Error>> {
                     var_buffer.clear();
                     in_variable = false;
                 }
-                
+
                 if in_quotes || in_double_quotes || escaped {
                     current_token.push(c);
                 } else {
