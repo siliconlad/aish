@@ -5,7 +5,7 @@ use crate::pipeline::Pipeline;
 use crate::redirect::{
     InputRedirect, OutputRedirect, OutputRedirectAppend, Redirect, RedirectType,
 };
-use crate::sequence::Sequence;
+use crate::sequence::{AndSequence, Sequence};
 use crate::token::Token;
 use crate::traits::{Runnable, ShellCommand};
 
@@ -13,6 +13,7 @@ use crate::traits::{Runnable, ShellCommand};
 type ShellCommandBox = Box<dyn ShellCommand>;
 type RunnableBox = Box<dyn Runnable>;
 type ShellCommandBoxes = Vec<ShellCommandBox>;
+type RunnableBoxes = Vec<RunnableBox>;
 
 pub fn clean(input: &mut String) -> &mut String {
     // Remove leading and trailing whitespace
@@ -36,6 +37,7 @@ pub fn tokenize(input: &mut String) -> Result<RunnableBox, Box<dyn Error>> {
     let mut in_quotes = false;
     let mut in_double_quotes = false;
     let mut in_pipeline = false;
+    let mut in_and_sequence = false;
     let mut r_type = RedirectType::None;
     let mut escaped = false;
 
@@ -44,14 +46,54 @@ pub fn tokenize(input: &mut String) -> Result<RunnableBox, Box<dyn Error>> {
     let mut tokens = Vec::<Token>::new();
     let mut commands = Vec::<Box<dyn ShellCommand>>::new();
     let mut r_cmd: Option<Box<dyn ShellCommand>> = None;
+    let mut sequence_commands = Vec::<Box<dyn Runnable>>::new();
     let mut final_commands = Vec::<Box<dyn Runnable>>::new();
 
     let cleaned = clean(input);
     for (i, c) in cleaned.chars().enumerate() {
         match c {
+            '&' => {
+                if in_quotes || in_double_quotes || escaped {
+                    current_token.push(c);
+                } else if cleaned.chars().nth(i + 1) == Some('&') {
+                    in_and_sequence = true;
+                } else {
+                    add_token(&mut tokens, &mut current_token);
+                    if in_pipeline {
+                        if r_type != RedirectType::None {
+                            let cmd = create_redirect(r_cmd.take().unwrap(), &mut tokens, &r_type)?;
+                            commands.push(match cmd {
+                                Redirect::Output(oredirect) => Box::new(oredirect),
+                                Redirect::OutputAppend(aredirect) => Box::new(aredirect),
+                                Redirect::Input(iredirect) => Box::new(iredirect),
+                                Redirect::None => unreachable!(),
+                            });
+                            r_type = RedirectType::None;
+                        } else {
+                            commands.push(create_command(&mut tokens)?);
+                        }
+                        sequence_commands.push(create_pipeline(&mut commands)?);
+                        in_pipeline = false;
+                    } else if r_type != RedirectType::None {
+                        let cmd = create_redirect(r_cmd.take().unwrap(), &mut tokens, &r_type)?;
+                        sequence_commands.push(match cmd {
+                            Redirect::Output(oredirect) => Box::new(oredirect),
+                            Redirect::OutputAppend(aredirect) => Box::new(aredirect),
+                            Redirect::Input(iredirect) => Box::new(iredirect),
+                            Redirect::None => unreachable!(),
+                        });
+                        r_type = RedirectType::None;
+                    } else {
+                        sequence_commands.push(runnable(tokens.clone())?);
+                        tokens.clear();
+                    }
+                }
+            }
             // Input Redirect
             '<' => {
-                if r_type == RedirectType::Output || r_type == RedirectType::OutputAppend {
+                if in_quotes || in_double_quotes || escaped {
+                    current_token.push(c);
+                } else if r_type == RedirectType::Output || r_type == RedirectType::OutputAppend {
                     let cmd = create_redirect(r_cmd.take().unwrap(), &mut tokens, &r_type)?;
                     r_cmd = match cmd {
                         Redirect::Output(oredirect) => Some(Box::new(oredirect)),
@@ -65,7 +107,9 @@ pub fn tokenize(input: &mut String) -> Result<RunnableBox, Box<dyn Error>> {
             }
             // Output Redirect
             '>' => {
-                if r_type == RedirectType::Input {
+                if in_quotes || in_double_quotes || escaped {
+                    current_token.push(c);
+                } else if r_type == RedirectType::Input {
                     let cmd = create_redirect(r_cmd.take().unwrap(), &mut tokens, &r_type)?;
                     r_cmd = match cmd {
                         Redirect::Input(iredirect) => Some(Box::new(iredirect)),
@@ -82,39 +126,64 @@ pub fn tokenize(input: &mut String) -> Result<RunnableBox, Box<dyn Error>> {
                 }
             }
             ';' => {
-                add_token(&mut tokens, &mut current_token);
-                if in_pipeline {
-                    if r_type != RedirectType::None {
+                if in_quotes || in_double_quotes || escaped {
+                    current_token.push(c);
+                } else {
+                    add_token(&mut tokens, &mut current_token);
+                    if in_pipeline {
+                        if r_type != RedirectType::None {
+                            let cmd = create_redirect(r_cmd.take().unwrap(), &mut tokens, &r_type)?;
+                            commands.push(match cmd {
+                                Redirect::Output(oredirect) => Box::new(oredirect),
+                                Redirect::OutputAppend(aredirect) => Box::new(aredirect),
+                                Redirect::Input(iredirect) => Box::new(iredirect),
+                                Redirect::None => unreachable!(),
+                            });
+                            r_type = RedirectType::None;
+                        } else {
+                            commands.push(create_command(&mut tokens)?);
+                        }
+
+                        if in_and_sequence {
+                            sequence_commands.push(create_pipeline(&mut commands)?);
+                            final_commands.push(create_and_sequence(&mut sequence_commands)?);
+                            in_and_sequence = false;
+                        } else {
+                            final_commands.push(create_pipeline(&mut commands)?);
+                        }
+                        in_pipeline = false;
+                    } else if r_type != RedirectType::None {
                         let cmd = create_redirect(r_cmd.take().unwrap(), &mut tokens, &r_type)?;
-                        commands.push(match cmd {
+                        let r_cmd: Box<dyn Runnable> = match cmd {
                             Redirect::Output(oredirect) => Box::new(oredirect),
                             Redirect::OutputAppend(aredirect) => Box::new(aredirect),
                             Redirect::Input(iredirect) => Box::new(iredirect),
                             Redirect::None => unreachable!(),
-                        });
+                        };
+                        if in_and_sequence {
+                            sequence_commands.push(r_cmd);
+                            final_commands.push(create_and_sequence(&mut sequence_commands)?);
+                            in_and_sequence = false;
+                        } else {
+                            final_commands.push(r_cmd);
+                        }
                         r_type = RedirectType::None;
                     } else {
-                        debug!("Creating command from tokens: {:?}", tokens);
-                        commands.push(create_command(&mut tokens)?);
+                        if in_and_sequence {
+                            sequence_commands.push(runnable(tokens.clone())?);
+                            final_commands.push(create_and_sequence(&mut sequence_commands)?);
+                            in_and_sequence = false;
+                        } else {
+                            final_commands.push(runnable(tokens.clone())?);
+                        }
+                        tokens.clear();
                     }
-                    final_commands.push(create_pipeline(&mut commands)?);
-                    in_pipeline = false;
-                } else if r_type != RedirectType::None {
-                    let cmd = create_redirect(r_cmd.take().unwrap(), &mut tokens, &r_type)?;
-                    final_commands.push(match cmd {
-                        Redirect::Output(oredirect) => Box::new(oredirect),
-                        Redirect::OutputAppend(aredirect) => Box::new(aredirect),
-                        Redirect::Input(iredirect) => Box::new(iredirect),
-                        Redirect::None => unreachable!(),
-                    });
-                    r_type = RedirectType::None;
-                } else {
-                    final_commands.push(runnable(tokens.clone())?);
-                    tokens.clear();
                 }
             }
             '|' => {
-                if r_type != RedirectType::None {
+                if in_quotes || in_double_quotes || escaped {
+                    current_token.push(c);
+                } else if r_type != RedirectType::None {
                     let cmd = create_redirect(r_cmd.take().unwrap(), &mut tokens, &r_type)?;
                     commands.push(match cmd {
                         Redirect::Output(oredirect) => Box::new(oredirect),
@@ -226,4 +295,10 @@ fn create_pipeline(cmds: &mut ShellCommandBoxes) -> Result<RunnableBox, Box<dyn 
     let new_pipeline = Pipeline::new(cmds.clone())?;
     cmds.clear();
     Ok(Box::new(new_pipeline))
+}
+
+fn create_and_sequence(cmds: &mut RunnableBoxes) -> Result<RunnableBox, Box<dyn Error>> {
+    let new_and_sequence = AndSequence::new(cmds.clone())?;
+    cmds.clear();
+    Ok(Box::new(new_and_sequence))
 }
