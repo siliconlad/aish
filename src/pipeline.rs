@@ -39,7 +39,7 @@ impl Runnable for Pipeline {
                             if !trimmed.is_empty() {
                                 println!("{}", trimmed);
                             }
-                        },
+                        }
                         Err(_) => {
                             if !buff.is_empty() {
                                 std::io::stdout().write_all(&buff)?;
