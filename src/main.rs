@@ -5,7 +5,8 @@ pub mod pipeline;
 pub mod redirect;
 pub mod sequence;
 pub mod token;
-pub mod tokenize;
+pub mod parser;
+pub mod errors;
 pub mod traits;
 
 #[macro_use]
@@ -33,7 +34,7 @@ fn main() -> Result<()> {
     let _ = rl.load_history(history.as_path());
     loop {
         let readline = rl.readline("> ");
-        let mut buffer = match readline {
+        let buffer = match readline {
             Ok(line) => {
                 let _ = rl.add_history_entry(line.as_str());
                 line
@@ -48,7 +49,7 @@ fn main() -> Result<()> {
 
         // Convert the input into a command
         debug!("Tokenizing...");
-        let tokenized = match tokenize::tokenize(&mut buffer) {
+        let tokenized = match parser::tokenize(buffer) {
             Ok(tokenized) => tokenized,
             Err(e) => {
                 eprintln!("{}", e);

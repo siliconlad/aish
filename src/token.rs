@@ -1,7 +1,8 @@
 use std::fmt;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Token {
+    Meta(String),
     Plain(String),
     DoubleQuoted(String),
     SingleQuoted(String),
@@ -10,7 +11,10 @@ pub enum Token {
 impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Token::Plain(s) | Token::DoubleQuoted(s) | Token::SingleQuoted(s) => write!(f, "{}", s),
+            Token::Meta(s) => write!(f, "{}", s),
+            Token::Plain(s) => write!(f, "{}", s),
+            Token::DoubleQuoted(s) => write!(f, "{}", s),
+            Token::SingleQuoted(s) => write!(f, "{}", s),
         }
     }
 }
