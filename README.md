@@ -10,7 +10,7 @@ A shell built with AI at the core.
 ## Features
 
 
-With `aish`, you can directly interact with LLMs from your command line.
+With `aish`, your LLM lives inside your shell.
 
 **Prompt it directly**
 
@@ -31,6 +31,14 @@ Bonjour
 ```
 > cat passwords.txt | "summarize"
 This is a file with a list of passwords.
+```
+
+**Utilise builtin `llm` command**
+
+```
+> echo "What is 2 + 2?" > prompt.txt
+> llm < prompt.txt
+The answer is 4.
 ```
 
 ## Getting Started
