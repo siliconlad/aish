@@ -1,12 +1,12 @@
 pub mod builtins;
 pub mod command;
+pub mod errors;
 pub mod openai_client;
+pub mod parser;
 pub mod pipeline;
 pub mod redirect;
 pub mod sequence;
 pub mod token;
-pub mod parser;
-pub mod errors;
 pub mod traits;
 
 #[macro_use]

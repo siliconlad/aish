@@ -1,6 +1,7 @@
 use std::error::Error;
 
 use crate::command::{cmd, runnable};
+use crate::errors::SyntaxError;
 use crate::pipeline::Pipeline;
 use crate::redirect::{
     InputRedirect, OutputRedirect, OutputRedirectAppend, Redirect, RedirectType,
@@ -8,7 +9,6 @@ use crate::redirect::{
 use crate::sequence::{AndSequence, Sequence};
 use crate::token::Token;
 use crate::traits::{Runnable, ShellCommand};
-use crate::errors::SyntaxError;
 
 // Type aliases for readability
 type ShellCommandBox = Box<dyn ShellCommand>;
@@ -58,7 +58,7 @@ pub fn lex(input: String) -> Result<Vec<Token>, Box<dyn Error>> {
                     tokens.push(Token::Plain(current_token.clone()));
                     current_token.clear();
                 }
-                
+
                 // Check for >>
                 if c == '>' && tokens.last() == Some(&Token::Meta(">".to_string())) {
                     tokens.pop();
@@ -99,7 +99,7 @@ pub fn lex(input: String) -> Result<Vec<Token>, Box<dyn Error>> {
                         _ => unreachable!(),
                     }
                 }
-                // If the wrong quote is closed, return an error 
+                // If the wrong quote is closed, return an error
                 else if quote_stack.contains(&c) {
                     return Err(Box::new(SyntaxError::UnclosedQuote));
                 }
@@ -134,7 +134,8 @@ pub fn parse(tokens: Vec<Token>) -> Result<RunnableBox, Box<dyn Error>> {
             Token::Meta(m) if m == ";" => {
                 if in_pipeline {
                     if r_type != RedirectType::None {
-                        let cmd = create_redirect(r_cmd.take().unwrap(), &mut current_command, &r_type)?;
+                        let cmd =
+                            create_redirect(r_cmd.take().unwrap(), &mut current_command, &r_type)?;
                         commands.push(match cmd {
                             Redirect::Output(oredirect) => Box::new(oredirect),
                             Redirect::OutputAppend(aredirect) => Box::new(aredirect),
@@ -154,7 +155,8 @@ pub fn parse(tokens: Vec<Token>) -> Result<RunnableBox, Box<dyn Error>> {
                     }
                     in_pipeline = false;
                 } else if r_type != RedirectType::None {
-                    let cmd = create_redirect(r_cmd.take().unwrap(), &mut current_command, &r_type)?;
+                    let cmd =
+                        create_redirect(r_cmd.take().unwrap(), &mut current_command, &r_type)?;
                     let r_cmd: Box<dyn Runnable> = match cmd {
                         Redirect::Output(oredirect) => Box::new(oredirect),
                         Redirect::OutputAppend(aredirect) => Box::new(aredirect),
@@ -182,7 +184,8 @@ pub fn parse(tokens: Vec<Token>) -> Result<RunnableBox, Box<dyn Error>> {
             }
             Token::Meta(m) if m == "|" => {
                 if r_type != RedirectType::None {
-                    let cmd = create_redirect(r_cmd.take().unwrap(), &mut current_command, &r_type)?;
+                    let cmd =
+                        create_redirect(r_cmd.take().unwrap(), &mut current_command, &r_type)?;
                     commands.push(match cmd {
                         Redirect::Output(oredirect) => Box::new(oredirect),
                         Redirect::OutputAppend(aredirect) => Box::new(aredirect),
@@ -199,7 +202,8 @@ pub fn parse(tokens: Vec<Token>) -> Result<RunnableBox, Box<dyn Error>> {
                 in_and_sequence = true;
                 if in_pipeline {
                     if r_type != RedirectType::None {
-                        let cmd = create_redirect(r_cmd.take().unwrap(), &mut current_command, &r_type)?;
+                        let cmd =
+                            create_redirect(r_cmd.take().unwrap(), &mut current_command, &r_type)?;
                         commands.push(match cmd {
                             Redirect::Output(oredirect) => Box::new(oredirect),
                             Redirect::OutputAppend(aredirect) => Box::new(aredirect),
@@ -213,7 +217,8 @@ pub fn parse(tokens: Vec<Token>) -> Result<RunnableBox, Box<dyn Error>> {
                     sequence_commands.push(create_pipeline(&mut commands)?);
                     in_pipeline = false;
                 } else if r_type != RedirectType::None {
-                    let cmd = create_redirect(r_cmd.take().unwrap(), &mut current_command, &r_type)?;
+                    let cmd =
+                        create_redirect(r_cmd.take().unwrap(), &mut current_command, &r_type)?;
                     sequence_commands.push(match cmd {
                         Redirect::Output(oredirect) => Box::new(oredirect),
                         Redirect::OutputAppend(aredirect) => Box::new(aredirect),
@@ -228,7 +233,8 @@ pub fn parse(tokens: Vec<Token>) -> Result<RunnableBox, Box<dyn Error>> {
             }
             Token::Meta(m) if m == "<" => {
                 if r_type == RedirectType::Output || r_type == RedirectType::OutputAppend {
-                    let cmd = create_redirect(r_cmd.take().unwrap(), &mut current_command, &r_type)?;
+                    let cmd =
+                        create_redirect(r_cmd.take().unwrap(), &mut current_command, &r_type)?;
                     r_cmd = match cmd {
                         Redirect::Output(oredirect) => Some(Box::new(oredirect)),
                         Redirect::OutputAppend(aredirect) => Some(Box::new(aredirect)),
@@ -241,7 +247,8 @@ pub fn parse(tokens: Vec<Token>) -> Result<RunnableBox, Box<dyn Error>> {
             }
             Token::Meta(m) if m == ">" => {
                 if r_type == RedirectType::Input {
-                    let cmd = create_redirect(r_cmd.take().unwrap(), &mut current_command, &r_type)?;
+                    let cmd =
+                        create_redirect(r_cmd.take().unwrap(), &mut current_command, &r_type)?;
                     r_cmd = match cmd {
                         Redirect::Input(iredirect) => Some(Box::new(iredirect)),
                         _ => unreachable!(),
@@ -253,7 +260,8 @@ pub fn parse(tokens: Vec<Token>) -> Result<RunnableBox, Box<dyn Error>> {
             }
             Token::Meta(m) if m == ">>" => {
                 if r_type == RedirectType::Input {
-                    let cmd = create_redirect(r_cmd.take().unwrap(), &mut current_command, &r_type)?;
+                    let cmd =
+                        create_redirect(r_cmd.take().unwrap(), &mut current_command, &r_type)?;
                     r_cmd = match cmd {
                         Redirect::Input(iredirect) => Some(Box::new(iredirect)),
                         _ => unreachable!(),
