@@ -1,11 +1,14 @@
-use crate::scanner::Scanner;
-use crate::token::{Token, Tokens, TokenType, tokenize};
 use crate::errors::SyntaxError;
+use crate::scanner::Scanner;
+use crate::token::{tokenize, Token, TokenType, Tokens};
 
 pub fn lex_impl(scanner: &mut Scanner<String>) -> Result<Tokens, SyntaxError> {
     let mut buffer = TokenBuffer::new();
     loop {
-        if scanner.peek().is_none() { break; }
+        if scanner.peek().is_none() {
+            break;
+        }
+
         match scanner.peek().unwrap() {
             '&' | '<' | ';' | '|' => {
                 buffer.push(scanner.next()).save(TokenType::Meta);
@@ -27,7 +30,7 @@ pub fn lex_impl(scanner: &mut Scanner<String>) -> Result<Tokens, SyntaxError> {
                 loop {
                     let c = scanner.peek();
 
-                    if c.is_none() { 
+                    if c.is_none() {
                         buffer.save(TokenType::Plain);
                         break;
                     }
@@ -40,23 +43,21 @@ pub fn lex_impl(scanner: &mut Scanner<String>) -> Result<Tokens, SyntaxError> {
                         }
                     }
 
-                    if is_meta(c.unwrap()) { 
+                    if is_meta(c.unwrap()) {
                         if escaped || quote_type.quoted() {
                             buffer.push(scanner.next());
-                        }
-                        else {
+                        } else {
                             buffer.save(TokenType::Plain);
                             break;
                         }
                     }
 
-                    if is_whitespace(c.unwrap()) { 
+                    if is_whitespace(c.unwrap()) {
                         if escaped || quote_type.quoted() {
                             buffer.push(scanner.next());
-                        }
-                        else {
+                        } else {
                             buffer.save(TokenType::Plain);
-                            scanner.next();  // Skip to next char
+                            scanner.next(); // Skip to next char
                             break;
                         }
                     }
@@ -135,7 +136,9 @@ impl TokenBuffer {
     }
 
     fn save(&mut self, token_type: TokenType) -> bool {
-        if self.token.is_empty() { return false; }
+        if self.token.is_empty() {
+            return false;
+        }
         let new_token = tokenize(self.token.clone(), token_type);
         self.tokens.push(new_token);
         self.token.clear();
@@ -166,4 +169,3 @@ fn is_single_quote(c: char) -> bool {
 fn is_double_quote(c: char) -> bool {
     c == '"'
 }
-

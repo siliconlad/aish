@@ -21,8 +21,12 @@ impl fmt::Display for Token {
         match self {
             Token::Meta(s) => write!(f, "{}", s),
             Token::Plain(s) => write!(f, "{}", s),
-            Token::DoubleQuoted(s) => write!(f, "{}", s),
-            Token::SingleQuoted(s) => write!(f, "{}", s),
+            Token::DoubleQuoted(s) => {
+                write!(f, "{}", s)
+            }
+            Token::SingleQuoted(s) => {
+                write!(f, "{}", s)
+            }
         }
     }
 }

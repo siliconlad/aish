@@ -1,8 +1,8 @@
+use crate::traits::Runnable;
 use dyn_clone::DynClone;
+use std::error::Error;
 use std::fmt::Display;
 use std::process::ChildStdout;
-use std::error::Error;
-use crate::traits::Runnable;
 
 pub trait ShellCommand: Runnable + DynClone {
     fn cmd(&self) -> &str;

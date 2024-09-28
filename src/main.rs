@@ -2,13 +2,13 @@ pub mod builtins;
 pub mod command;
 pub mod errors;
 pub mod openai_client;
+pub mod parsing;
 pub mod pipeline;
 pub mod redirect;
+pub mod scanner;
 pub mod sequence;
 pub mod token;
 pub mod traits;
-pub mod scanner;
-pub mod parsing;
 
 #[macro_use]
 extern crate log;
