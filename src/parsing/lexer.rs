@@ -1,5 +1,5 @@
 use crate::errors::SyntaxError;
-use crate::scanner::Scanner;
+use crate::parsing::scanner::Scanner;
 use crate::token::{tokenize, Token, TokenType, Tokens};
 
 pub fn lex_impl(scanner: &mut Scanner<String>) -> Result<Tokens, SyntaxError> {

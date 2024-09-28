@@ -5,7 +5,6 @@ pub mod openai_client;
 pub mod parsing;
 pub mod pipeline;
 pub mod redirect;
-pub mod scanner;
 pub mod sequence;
 pub mod token;
 pub mod traits;
