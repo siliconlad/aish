@@ -1,12 +1,8 @@
 use dyn_clone::DynClone;
-use std::error::Error;
 use std::fmt::Display;
 use std::process::ChildStdout;
-
-pub trait Runnable: DynClone {
-    fn run(&self) -> Result<String, Box<dyn Error>>;
-}
-dyn_clone::clone_trait_object!(Runnable);
+use std::error::Error;
+use crate::traits::Runnable;
 
 pub trait ShellCommand: Runnable + DynClone {
     fn cmd(&self) -> &str;
