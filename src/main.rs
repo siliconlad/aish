@@ -2,19 +2,20 @@ pub mod builtins;
 pub mod command;
 pub mod errors;
 pub mod openai_client;
-pub mod parser;
 pub mod pipeline;
 pub mod redirect;
 pub mod sequence;
 pub mod token;
 pub mod traits;
 pub mod scanner;
+pub mod parsing;
 
 #[macro_use]
 extern crate log;
 extern crate simplelog;
 
 use home::home_dir;
+use parsing::parse;
 use rustyline::error::ReadlineError;
 use rustyline::{DefaultEditor, Result};
 use simplelog::{Config, LevelFilter, WriteLogger};
@@ -50,7 +51,7 @@ fn main() -> Result<()> {
 
         // Convert the input into a command
         debug!("Tokenizing...");
-        let tokenized = match parser::tokenize(buffer) {
+        let tokenized = match parse(buffer) {
             Ok(tokenized) => tokenized,
             Err(e) => {
                 eprintln!("{}", e);
