@@ -8,6 +8,7 @@ pub mod redirect;
 pub mod sequence;
 pub mod token;
 pub mod traits;
+pub mod scanner;
 
 #[macro_use]
 extern crate log;
