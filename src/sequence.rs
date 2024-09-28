@@ -1,6 +1,7 @@
 use crate::traits::Runnable;
 use std::error::Error;
 use std::ops::Index;
+use std::collections::HashMap;
 
 #[derive(Clone)]
 pub struct Sequence {
@@ -14,9 +15,9 @@ impl Sequence {
 }
 
 impl Runnable for Sequence {
-    fn run(&self) -> Result<String, Box<dyn Error>> {
+    fn run(&self, aliases: &mut HashMap<String, String>) -> Result<String, Box<dyn Error>> {
         for command in &self.commands {
-            let _ = command.run(); // Ignore error
+            let _ = command.run(aliases); // Ignore error
         }
         Ok("".to_string())
     }
@@ -42,9 +43,9 @@ impl AndSequence {
 }
 
 impl Runnable for AndSequence {
-    fn run(&self) -> Result<String, Box<dyn Error>> {
+    fn run(&self, aliases: &mut HashMap<String, String>) -> Result<String, Box<dyn Error>> {
         for command in &self.commands {
-            command.run()?; // ? will propagate error
+            command.run(aliases)?; // ? will propagate error
         }
         Ok("".to_string())
     }

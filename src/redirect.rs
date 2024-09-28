@@ -8,6 +8,7 @@ use std::os::unix::io::FromRawFd;
 use std::process::ChildStdout;
 use std::process::Command;
 use std::process::Stdio;
+use std::collections::HashMap;
 
 #[derive(Clone, PartialEq)]
 pub enum RedirectType {
@@ -51,9 +52,9 @@ impl OutputRedirect {
 }
 
 impl Runnable for OutputRedirect {
-    fn run(&self) -> Result<String, Box<dyn Error>> {
+    fn run(&self, aliases: &mut HashMap<String, String>) -> Result<String, Box<dyn Error>> {
         let mut file = self.open_file()?;
-        let stdout = self.commands[0].pipe(None)?;
+        let stdout = self.commands[0].pipe(None, aliases)?;
         if let Some(mut stdout) = stdout {
             std::io::copy(&mut stdout, &mut file)?;
         }
@@ -70,10 +71,10 @@ impl ShellCommand for OutputRedirect {
         self.commands[0].args()
     }
 
-    fn pipe(&self, stdin: Option<ChildStdout>) -> Result<Option<ChildStdout>, Box<dyn Error>> {
+    fn pipe(&self, stdin: Option<ChildStdout>, aliases: &mut HashMap<String, String>) -> Result<Option<ChildStdout>, Box<dyn Error>> {
         let mut file = self.open_file()?;
-        let stdout = self.commands[0].pipe(stdin)?;
-        if let Some(mut stdout) = stdout {
+        let stdout = self.commands[0].pipe(stdin, aliases)?;
+        if let Some(mut stdout) = stdout {          
             std::io::copy(&mut stdout, &mut file)?;
         }
         Ok(None)
@@ -110,9 +111,9 @@ impl OutputRedirectAppend {
 }
 
 impl Runnable for OutputRedirectAppend {
-    fn run(&self) -> Result<String, Box<dyn Error>> {
+    fn run(&self, aliases: &mut HashMap<String, String>) -> Result<String, Box<dyn Error>> {
         let mut file = self.open_file()?;
-        let stdout = self.commands[0].pipe(None)?;
+        let stdout = self.commands[0].pipe(None, aliases)?;
         if let Some(mut stdout) = stdout {
             std::io::copy(&mut stdout, &mut file)?;
         }
@@ -129,9 +130,9 @@ impl ShellCommand for OutputRedirectAppend {
         self.commands[0].args()
     }
 
-    fn pipe(&self, stdin: Option<ChildStdout>) -> Result<Option<ChildStdout>, Box<dyn Error>> {
+    fn pipe(&self, stdin: Option<ChildStdout>, aliases: &mut HashMap<String, String>) -> Result<Option<ChildStdout>, Box<dyn Error>> {
         let mut file = self.open_file()?;
-        let stdout = self.commands[0].pipe(stdin)?;
+        let stdout = self.commands[0].pipe(stdin, aliases)?;
         if let Some(mut stdout) = stdout {
             std::io::copy(&mut stdout, &mut file)?;
         }
@@ -161,7 +162,7 @@ impl InputRedirect {
 }
 
 impl Runnable for InputRedirect {
-    fn run(&self) -> Result<String, Box<dyn Error>> {
+    fn run(&self, aliases: &mut HashMap<String, String>) -> Result<String, Box<dyn Error>> {
         let file = File::open(&self.input_file)?;
         let file_fd = file.into_raw_fd();
 
@@ -171,7 +172,7 @@ impl Runnable for InputRedirect {
             .spawn()?;
         let input = child.stdout.take().unwrap();
 
-        let stdout = self.commands[0].pipe(Some(input))?;
+        let stdout = self.commands[0].pipe(Some(input), aliases)?;
         if let Some(mut stdout) = stdout {
             let mut output = String::new();
             stdout.read_to_string(&mut output)?;
@@ -190,7 +191,7 @@ impl ShellCommand for InputRedirect {
         self.commands[0].args()
     }
 
-    fn pipe(&self, _stdin: Option<ChildStdout>) -> Result<Option<ChildStdout>, Box<dyn Error>> {
+    fn pipe(&self, _stdin: Option<ChildStdout>, aliases: &mut HashMap<String, String>) -> Result<Option<ChildStdout>, Box<dyn Error>> {
         let file = File::open(&self.input_file)?;
         let file_fd = file.into_raw_fd();
 
@@ -200,7 +201,7 @@ impl ShellCommand for InputRedirect {
             .spawn()?;
         let input = child.stdout.take().unwrap();
 
-        let stdout = self.commands[0].pipe(Some(input))?;
+        let stdout = self.commands[0].pipe(Some(input), aliases)?;
         Ok(stdout)
     }
 }
