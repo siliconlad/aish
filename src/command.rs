@@ -14,62 +14,6 @@ use std::os::fd::AsRawFd;
 use std::process::{ChildStdout, Command, Stdio};
 use tokio::runtime::Runtime;
 
-pub fn cmd(tokens: Vec<Token>) -> Result<Box<dyn ShellCommand>, Box<dyn Error>> {
-    if tokens.is_empty() {
-        return Err("Tokens cannot be empty".into());
-    }
-
-    match &tokens[..] {
-        [Token::DoubleQuoted(prompt)] => {
-            debug!("Detected LLM command with tokens: {:?}", tokens);
-            let openai_client = if let Ok(api_key) = env::var("OPENAI_API_KEY") {
-                OpenAIClient::new(api_key)
-            } else {
-                return Err("OPENAI_API_KEY not set".into());
-            };
-            Ok(Box::new(LlmCommand::new(prompt.clone(), openai_client)))
-        }
-        [Token::Plain(cmd), ..] if is_builtin(cmd) => {
-            debug!("Detected builtin command: {:?}", tokens);
-            let string_tokens: Vec<String> = tokens.into_iter().map(|t| t.to_string()).collect();
-            Ok(Box::new(BuiltinCommand::new(string_tokens)?))
-        }
-        _ => {
-            debug!("Detected external command: {:?}", tokens);
-            let string_tokens: Vec<String> = tokens.into_iter().map(|t| t.to_string()).collect();
-            Ok(Box::new(ExternalCommand::new(string_tokens)?))
-        }
-    }
-}
-
-pub fn runnable(tokens: Vec<Token>) -> Result<Box<dyn Runnable>, Box<dyn Error>> {
-    if tokens.is_empty() {
-        return Err("Tokens cannot be empty".into());
-    }
-
-    match &tokens[..] {
-        [Token::DoubleQuoted(prompt)] => {
-            debug!("Detected LLM command with tokens: {:?}", tokens);
-            let openai_client = if let Ok(api_key) = env::var("OPENAI_API_KEY") {
-                OpenAIClient::new(api_key)
-            } else {
-                return Err("OPENAI_API_KEY not set".into());
-            };
-            Ok(Box::new(LlmCommand::new(prompt.clone(), openai_client)))
-        }
-        [Token::Plain(cmd), ..] if is_builtin(cmd) => {
-            debug!("Detected builtin command: {:?}", tokens);
-            let string_tokens: Vec<String> = tokens.into_iter().map(|t| t.to_string()).collect();
-            Ok(Box::new(BuiltinCommand::new(string_tokens)?))
-        }
-        _ => {
-            debug!("Detected external command: {:?}", tokens);
-            let string_tokens: Vec<String> = tokens.into_iter().map(|t| t.to_string()).collect();
-            Ok(Box::new(ExternalCommand::new(string_tokens)?))
-        }
-    }
-}
-
 pub enum CommandType {
     Builtin(BuiltinCommand),
     External(ExternalCommand),
