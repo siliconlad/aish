@@ -76,22 +76,7 @@ fn parse_cmd_impl(tokens: &mut Scanner<Tokens>) -> Result<CommandType, SyntaxErr
         }
 
         match tokens.peek().unwrap() {
-            Token::Meta(m) if m == ";" => {
-                break;
-            }
-            Token::Meta(m) if m == "&" => {
-                break;
-            }
-            Token::Meta(m) if m == "|" => {
-                break;
-            }
-            Token::Meta(m) if m == "<" => {
-                break;
-            }
-            Token::Meta(m) if m == ">" => {
-                break;
-            }
-            Token::Meta(m) if m == ">>" => {
+            Token::Meta(_) => {
                 break;
             }
             _ => {
