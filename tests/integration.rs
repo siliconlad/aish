@@ -1,8 +1,25 @@
-use std::io::{Read, Write};
+use std::env;
+use std::io::Write;
+use std::path::PathBuf;
 use std::process::{Command, Stdio};
+use tempfile::TempDir;
+
+fn canonicalize_path(path: &str) -> String {
+    PathBuf::from(path)
+        .canonicalize()
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_string()
+}
 
 fn run_shell_command(input: &str) -> (String, String) {
-    let mut child = Command::new("./target/debug/aish")
+    let temp_dir = TempDir::new().expect("Failed to create temp dir");
+
+    let aish_path = env!("CARGO_BIN_EXE_aish");
+
+    let mut child = Command::new(aish_path)
+        .current_dir(temp_dir.path())
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -68,7 +85,7 @@ fn test_exit_command() {
 #[test]
 fn test_cd_command() {
     let (stdout, stderr) = run_shell_command("cd /tmp && pwd");
-    assert_eq!(stdout, "/tmp");
+    assert_eq!(stdout, canonicalize_path("/tmp"));
     assert_eq!(stderr, "");
 }
 
