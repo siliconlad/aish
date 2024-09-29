@@ -13,11 +13,36 @@ pub struct Pipeline {
 }
 
 impl Pipeline {
-    pub fn new(commands: Vec<Box<dyn ShellCommand>>) -> Result<Pipeline, Box<dyn Error>> {
-        if commands.is_empty() {
-            return Err("Commands cannot be empty".into());
+    pub fn new() -> Pipeline {
+        Pipeline {
+            commands: Vec::new(),
         }
-        Ok(Pipeline { commands })
+    }
+
+    pub fn init(commands: Vec<Box<dyn ShellCommand>>) -> Pipeline {
+        Pipeline { commands }
+    }
+
+    pub fn add(&mut self, command: Box<dyn ShellCommand>) -> &mut Pipeline {
+        self.commands.push(command);
+        self
+    }
+
+    pub fn transfer(&mut self) -> Pipeline {
+        let commands = self.commands.clone();
+        self.clear();
+        Pipeline { commands }
+    }
+
+    pub fn clear(&mut self) -> &mut Pipeline {
+        self.commands.clear();
+        self
+    }
+}
+
+impl Default for Pipeline {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

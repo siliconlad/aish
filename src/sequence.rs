@@ -8,8 +8,36 @@ pub struct Sequence {
 }
 
 impl Sequence {
-    pub fn new(commands: Vec<Box<dyn Runnable>>) -> Result<Sequence, Box<dyn Error>> {
-        Ok(Sequence { commands })
+    pub fn new() -> Sequence {
+        Sequence {
+            commands: Vec::new(),
+        }
+    }
+
+    pub fn init(commands: Vec<Box<dyn Runnable>>) -> Sequence {
+        Sequence { commands }
+    }
+
+    pub fn add(&mut self, command: Box<dyn Runnable>) -> &mut Sequence {
+        self.commands.push(command);
+        self
+    }
+
+    pub fn transfer(&mut self) -> Sequence {
+        let commands = self.commands.clone();
+        self.clear();
+        Sequence { commands }
+    }
+
+    pub fn clear(&mut self) -> &mut Sequence {
+        self.commands.clear();
+        self
+    }
+}
+
+impl Default for Sequence {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -36,8 +64,36 @@ pub struct AndSequence {
 }
 
 impl AndSequence {
-    pub fn new(commands: Vec<Box<dyn Runnable>>) -> Result<AndSequence, Box<dyn Error>> {
-        Ok(AndSequence { commands })
+    pub fn new() -> AndSequence {
+        AndSequence {
+            commands: Vec::new(),
+        }
+    }
+
+    pub fn init(commands: Vec<Box<dyn Runnable>>) -> AndSequence {
+        AndSequence { commands }
+    }
+
+    pub fn add(&mut self, command: Box<dyn Runnable>) -> &mut AndSequence {
+        self.commands.push(command);
+        self
+    }
+
+    pub fn transfer(&mut self) -> AndSequence {
+        let commands = self.commands.clone();
+        self.clear();
+        AndSequence { commands }
+    }
+
+    pub fn clear(&mut self) -> &mut AndSequence {
+        self.commands.clear();
+        self
+    }
+}
+
+impl Default for AndSequence {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

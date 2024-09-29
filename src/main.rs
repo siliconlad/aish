@@ -13,6 +13,7 @@ pub mod traits;
 extern crate log;
 extern crate simplelog;
 
+use crate::traits::Runnable;
 use home::home_dir;
 use parsing::parse;
 use rustyline::error::ReadlineError;

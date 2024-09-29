@@ -1,6 +1,8 @@
 use crate::builtins::builtin;
 use crate::builtins::is_builtin;
+use crate::errors::SyntaxError;
 use crate::openai_client::OpenAIClient;
+use crate::redirect;
 use crate::token::Token;
 use crate::traits::{Runnable, ShellCommand};
 
@@ -68,15 +70,81 @@ pub fn runnable(tokens: Vec<Token>) -> Result<Box<dyn Runnable>, Box<dyn Error>>
     }
 }
 
+pub enum CommandType {
+    Builtin(BuiltinCommand),
+    External(ExternalCommand),
+    Llm(LlmCommand),
+    InputRedirect(redirect::InputRedirect),
+    OutputRedirect(redirect::OutputRedirect),
+    OutputRedirectAppend(redirect::OutputRedirectAppend),
+}
+
+impl CommandType {
+    pub fn create(tokens: Vec<Token>) -> Result<CommandType, SyntaxError> {
+        if tokens.is_empty() {
+            return Err(SyntaxError::ExpectedToken);
+        }
+
+        match &tokens[..] {
+            [Token::DoubleQuoted(prompt)] => {
+                debug!("Detected LLM command with tokens: {:?}", tokens);
+                let openai_client = if let Ok(api_key) = env::var("OPENAI_API_KEY") {
+                    OpenAIClient::new(api_key)
+                } else {
+                    return Err(SyntaxError::InvalidOpenAIKey);
+                };
+                Ok(CommandType::Llm(LlmCommand::new(
+                    prompt.clone(),
+                    openai_client,
+                )))
+            }
+            [Token::Plain(cmd), ..] if is_builtin(cmd) => {
+                debug!("Detected builtin command: {:?}", tokens);
+                let string_tokens: Vec<String> =
+                    tokens.into_iter().map(|t| t.to_string()).collect();
+                Ok(CommandType::Builtin(BuiltinCommand::new(string_tokens)?))
+            }
+            _ => {
+                debug!("Detected external command: {:?}", tokens);
+                let string_tokens: Vec<String> =
+                    tokens.into_iter().map(|t| t.to_string()).collect();
+                Ok(CommandType::External(ExternalCommand::new(string_tokens)?))
+            }
+        }
+    }
+
+    pub fn unpack_cmd(self) -> Box<dyn ShellCommand> {
+        match self {
+            CommandType::Builtin(cmd) => Box::new(cmd),
+            CommandType::External(cmd) => Box::new(cmd),
+            CommandType::Llm(cmd) => Box::new(cmd),
+            CommandType::InputRedirect(cmd) => Box::new(cmd),
+            CommandType::OutputRedirect(cmd) => Box::new(cmd),
+            CommandType::OutputRedirectAppend(cmd) => Box::new(cmd),
+        }
+    }
+
+    pub fn unpack_run(self) -> Box<dyn Runnable> {
+        match self {
+            CommandType::Builtin(cmd) => Box::new(cmd),
+            CommandType::External(cmd) => Box::new(cmd),
+            CommandType::Llm(cmd) => Box::new(cmd),
+            CommandType::InputRedirect(cmd) => Box::new(cmd),
+            CommandType::OutputRedirect(cmd) => Box::new(cmd),
+            CommandType::OutputRedirectAppend(cmd) => Box::new(cmd),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct BuiltinCommand {
     tokens: Vec<String>,
 }
 
 impl BuiltinCommand {
-    pub fn new(tokens: Vec<String>) -> Result<BuiltinCommand, Box<dyn Error>> {
+    pub fn new(tokens: Vec<String>) -> Result<BuiltinCommand, SyntaxError> {
         if tokens.is_empty() {
-            return Err("Tokens cannot be empty".into());
+            return Err(SyntaxError::InternalError);
         }
         Ok(BuiltinCommand { tokens })
     }
@@ -131,9 +199,9 @@ pub struct ExternalCommand {
 }
 
 impl ExternalCommand {
-    pub fn new(tokens: Vec<String>) -> Result<ExternalCommand, Box<dyn Error>> {
+    pub fn new(tokens: Vec<String>) -> Result<ExternalCommand, SyntaxError> {
         if tokens.is_empty() {
-            return Err("Tokens cannot be empty".into());
+            return Err(SyntaxError::InternalError);
         }
         Ok(ExternalCommand { tokens })
     }

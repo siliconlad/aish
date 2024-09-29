@@ -1,3 +1,4 @@
+use crate::errors::SyntaxError;
 use crate::traits::{Runnable, ShellCommand};
 use std::error::Error;
 use std::fs::File;
@@ -34,9 +35,9 @@ impl OutputRedirect {
     pub fn new(
         commands: Vec<Box<dyn ShellCommand>>,
         output_file: String,
-    ) -> Result<Self, Box<dyn Error>> {
+    ) -> Result<Self, SyntaxError> {
         if commands.len() != 1 {
-            return Err("Output redirect must have exactly one command".into());
+            return Err(SyntaxError::InternalError);
         }
         Ok(Self {
             commands,
@@ -90,9 +91,9 @@ impl OutputRedirectAppend {
     pub fn new(
         commands: Vec<Box<dyn ShellCommand>>,
         output_file: String,
-    ) -> Result<Self, Box<dyn Error>> {
+    ) -> Result<Self, SyntaxError> {
         if commands.len() != 1 {
-            return Err("Output redirect must have exactly one command".into());
+            return Err(SyntaxError::InternalError);
         }
         Ok(Self {
             commands,
@@ -149,9 +150,9 @@ impl InputRedirect {
     pub fn new(
         commands: Vec<Box<dyn ShellCommand>>,
         input_file: String,
-    ) -> Result<Self, Box<dyn Error>> {
+    ) -> Result<Self, SyntaxError> {
         if commands.len() != 1 {
-            return Err("Input redirect must have exactly one command".into());
+            return Err(SyntaxError::InternalError);
         }
         Ok(Self {
             commands,
