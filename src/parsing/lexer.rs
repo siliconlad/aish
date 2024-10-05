@@ -40,18 +40,14 @@ pub fn lex_impl(scanner: &mut Scanner<String>) -> Result<Tokens, SyntaxError> {
                         buffer.save(TokenType::Plain);
                         debug!("EOF");
                         break;
-                    }
-
-                    else if is_escape(c.unwrap()) {
+                    } else if is_escape(c.unwrap()) {
                         debug!("Escape: {}", c.unwrap());
                         if escaped || quote_type.single() {
                             buffer.push(scanner.next());
                         } else {
                             escaped = true;
                         }
-                    }
-
-                    else if is_meta(c.unwrap()) {
+                    } else if is_meta(c.unwrap()) {
                         debug!("Meta: {}", c.unwrap());
                         if escaped || quote_type.quoted() {
                             buffer.push(scanner.next());
@@ -59,9 +55,7 @@ pub fn lex_impl(scanner: &mut Scanner<String>) -> Result<Tokens, SyntaxError> {
                             buffer.save(TokenType::Plain);
                             break;
                         }
-                    }
-
-                    else if is_whitespace(c.unwrap()) {
+                    } else if is_whitespace(c.unwrap()) {
                         debug!("Whitespace");
                         if escaped || quote_type.quoted() {
                             buffer.push(scanner.next());
@@ -70,9 +64,7 @@ pub fn lex_impl(scanner: &mut Scanner<String>) -> Result<Tokens, SyntaxError> {
                             scanner.next(); // Skip to next char
                             break;
                         }
-                    }
-
-                    else if is_double_quote(c.unwrap()) {
+                    } else if is_double_quote(c.unwrap()) {
                         debug!("Double quote");
                         let c = scanner.next();
                         if escaped || quote_type.single() {
@@ -85,9 +77,7 @@ pub fn lex_impl(scanner: &mut Scanner<String>) -> Result<Tokens, SyntaxError> {
                             buffer.save(TokenType::Plain);
                             quote_type = QuoteType::Double;
                         }
-                    }
-
-                    else if is_single_quote(c.unwrap()) {
+                    } else if is_single_quote(c.unwrap()) {
                         debug!("Single quote");
                         let c = scanner.next();
                         if escaped || quote_type.double() {
@@ -100,9 +90,7 @@ pub fn lex_impl(scanner: &mut Scanner<String>) -> Result<Tokens, SyntaxError> {
                             buffer.save(TokenType::Plain);
                             quote_type = QuoteType::Single;
                         }
-                    }
-
-                    else {
+                    } else {
                         debug!("Char: {}", c.unwrap());
                         buffer.push(scanner.next());
                     }

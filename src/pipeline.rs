@@ -1,6 +1,6 @@
 use crate::traits::{Runnable, ShellCommand};
-use std::fmt;
 use std::error::Error;
+use std::fmt;
 use std::fs::File;
 use std::io::{BufReader, Read};
 use std::ops::Index;

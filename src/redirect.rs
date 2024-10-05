@@ -1,7 +1,7 @@
 use crate::errors::SyntaxError;
 use crate::traits::{Runnable, ShellCommand};
-use std::fmt;
 use std::error::Error;
+use std::fmt;
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::Read;
@@ -54,7 +54,11 @@ impl OutputRedirect {
 
 impl fmt::Debug for OutputRedirect {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "OutputRedirect({:?}, {:?})", self.output_file, self.commands)
+        write!(
+            f,
+            "OutputRedirect({:?}, {:?})",
+            self.output_file, self.commands
+        )
     }
 }
 
@@ -119,7 +123,11 @@ impl OutputRedirectAppend {
 
 impl fmt::Debug for OutputRedirectAppend {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "OutputRedirectAppend({:?}, {:?})", self.output_file, self.commands)
+        write!(
+            f,
+            "OutputRedirectAppend({:?}, {:?})",
+            self.output_file, self.commands
+        )
     }
 }
 
@@ -176,7 +184,11 @@ impl InputRedirect {
 
 impl fmt::Debug for InputRedirect {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "InputRedirect({:?}, {:?})", self.input_file, self.commands)
+        write!(
+            f,
+            "InputRedirect({:?}, {:?})",
+            self.input_file, self.commands
+        )
     }
 }
 

@@ -6,10 +6,10 @@ use crate::redirect;
 use crate::token::Token;
 use crate::traits::{Runnable, ShellCommand};
 
-use std::fmt;
 use nix::unistd::{dup2, fork, pipe, ForkResult};
 use std::env;
 use std::error::Error;
+use std::fmt;
 use std::io::Read;
 use std::os::fd::AsRawFd;
 use std::process::{ChildStdout, Command, Stdio};
