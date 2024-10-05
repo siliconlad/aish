@@ -1,5 +1,7 @@
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
+use std::env;
+use crate::errors::SyntaxError;
 
 #[derive(Serialize)]
 struct Message {
@@ -36,11 +38,23 @@ pub struct OpenAIClient {
 }
 
 impl OpenAIClient {
-    pub fn new(api_key: String) -> Self {
-        OpenAIClient {
+    pub fn new(api_key: Option<String>) -> Result<Self, SyntaxError> {
+        let key = match api_key {
+            Some(key) => key,
+            None => match env::var("OPENAI_API_KEY") {
+                Ok(key) => key,
+                Err(_) => {
+                    return Err(SyntaxError::InvalidOpenAIKey(
+                        "OPENAI_API_KEY not set".to_string(),
+                    ));
+                }
+            },
+        };
+
+        Ok(OpenAIClient {
             client: Client::new(),
-            api_key,
-        }
+            api_key: key,
+        })
     }
 
     pub async fn generate_text(

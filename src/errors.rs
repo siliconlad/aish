@@ -10,8 +10,8 @@ pub enum SyntaxError {
     ExpectedToken,
     #[error("Internal Error")]
     InternalError,
-    #[error("Invalid OPENAI_API_KEY")]
-    InvalidOpenAIKey,
+    #[error("Invalid OPENAI_API_KEY: {0}")]
+    InvalidOpenAIKey(String),
 }
 
 #[derive(Error, Debug)]
