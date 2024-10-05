@@ -1,7 +1,7 @@
 use crate::traits::{Runnable, ShellCommand};
 use std::error::Error;
 use std::fs::File;
-use std::io::{BufReader, Read};
+use std::io::{BufReader, Read, Write};
 use std::ops::Index;
 use std::os::fd::FromRawFd;
 use std::os::fd::IntoRawFd;
@@ -27,14 +27,24 @@ impl Runnable for Pipeline {
         for (i, command) in self.commands.iter().enumerate() {
             let cmd_stdout = command.pipe(prev_stdout.take())?;
             if i == self.commands.len() - 1 {
-                let mut output = String::new();
                 if let Some(stdout) = cmd_stdout {
+                    let mut buff = Vec::new();
                     let mut reader =
                         BufReader::new(unsafe { File::from_raw_fd(stdout.into_raw_fd()) });
-                    reader.read_to_string(&mut output)?;
-                    let trimmed = output.trim_end_matches('\n').to_string();
-                    if !trimmed.is_empty() {
-                        println!("{}", trimmed);
+                    reader.read_to_end(&mut buff)?;
+
+                    match String::from_utf8(buff.clone()) {
+                        Ok(s) => {
+                            let trimmed = s.trim_end_matches('\n').to_string();
+                            if !trimmed.is_empty() {
+                                println!("{}", trimmed);
+                            }
+                        }
+                        Err(_) => {
+                            if !buff.is_empty() {
+                                std::io::stdout().write_all(&buff)?;
+                            }
+                        }
                     }
                 }
                 return Ok("".to_string());
