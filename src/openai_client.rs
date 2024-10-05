@@ -1,7 +1,7 @@
+use crate::errors::SyntaxError;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::env;
-use crate::errors::SyntaxError;
 
 #[derive(Serialize)]
 struct Message {
