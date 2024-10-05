@@ -17,14 +17,19 @@ pub fn parse_impl(tokens: &mut Scanner<Tokens>) -> Result<Sequence, SyntaxError>
     let mut pipeline = Pipeline::new();
 
     loop {
+        debug!("Parsing tokens");
+
         if tokens.peek().is_none() {
+            debug!("End of tokens");
             break;
         }
 
         let command = parse_cmd_impl(tokens)?;
+        debug!("Parsed command: {:?}", command);
 
         match tokens.peek().unwrap() {
             Token::Meta(m) if m == ";" => {
+                tokens.next(); // Consume token
                 if in_pipeline && in_and_sequence {
                     in_pipeline = false;
                     in_and_sequence = false;
@@ -44,6 +49,7 @@ pub fn parse_impl(tokens: &mut Scanner<Tokens>) -> Result<Sequence, SyntaxError>
                 }
             }
             Token::Meta(m) if m == "&" => {
+                tokens.next(); // Consume token
                 in_and_sequence = true;
                 if in_pipeline {
                     in_pipeline = false;
@@ -54,6 +60,7 @@ pub fn parse_impl(tokens: &mut Scanner<Tokens>) -> Result<Sequence, SyntaxError>
                 }
             }
             Token::Meta(m) if m == "|" => {
+                tokens.next(); // Consume token
                 in_pipeline = true;
                 pipeline.add(command.unpack_cmd());
             }
@@ -72,11 +79,14 @@ fn parse_cmd_impl(tokens: &mut Scanner<Tokens>) -> Result<CommandType, SyntaxErr
 
     loop {
         if tokens.peek().is_none() {
+            debug!("End of tokens");
             break;
         }
 
         match tokens.peek().unwrap() {
-            Token::Meta(_) => {
+            Token::Meta(c) => {
+                debug!("Tokens: {:?}", command_tokens);
+                debug!("Break point ({})", c);
                 break;
             }
             _ => {
@@ -94,33 +104,42 @@ fn parse_cmd_impl(tokens: &mut Scanner<Tokens>) -> Result<CommandType, SyntaxErr
 
         match tokens.peek().unwrap() {
             Token::Meta(m) if m == ";" => {
+                debug!("End of command (;)");
                 break;
             }
             Token::Meta(m) if m == "&" => {
+                debug!("End of command (&)");
                 break;
             }
             Token::Meta(m) if m == "|" => {
+                debug!("End of command (|)");
                 break;
             }
             Token::Meta(m) if m == "<" => {
+                debug!("Input redirect");
                 tokens.next();
                 let file_name = tokens.next().to_string();
+                debug!("Input redirect file name: {}", file_name);
                 command = CommandType::InputRedirect(InputRedirect::new(
                     vec![command.unpack_cmd()],
                     file_name,
                 )?);
             }
             Token::Meta(m) if m == ">" => {
+                debug!("Output redirect");
                 tokens.next();
                 let file_name = tokens.next().to_string();
+                debug!("Output redirect file name: {}", file_name);
                 command = CommandType::OutputRedirect(OutputRedirect::new(
                     vec![command.unpack_cmd()],
                     file_name,
                 )?);
             }
             Token::Meta(m) if m == ">>" => {
+                debug!("Output redirect append");
                 tokens.next();
                 let file_name = tokens.next().to_string();
+                debug!("Output redirect append file name: {}", file_name);
                 command = CommandType::OutputRedirectAppend(OutputRedirectAppend::new(
                     vec![command.unpack_cmd()],
                     file_name,
@@ -128,6 +147,7 @@ fn parse_cmd_impl(tokens: &mut Scanner<Tokens>) -> Result<CommandType, SyntaxErr
             }
             _ => {
                 let token = tokens.next().to_string();
+                debug!("Unexpected token: {}", token);
                 return Err(SyntaxError::UnexpectedToken(token));
             }
         }

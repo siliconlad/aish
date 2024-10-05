@@ -53,7 +53,7 @@ impl fmt::Debug for Pipeline {
         for (i, command) in self.commands.iter().enumerate() {
             write!(f, "{:?}", command)?;
             if i < self.commands.len() - 1 {
-                write!(f, " ")?;
+                write!(f, ", ")?;
             }
         }
         write!(f, ")")

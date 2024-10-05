@@ -54,7 +54,7 @@ impl OutputRedirect {
 
 impl fmt::Debug for OutputRedirect {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "OutputRedirect({:?})", self.output_file)
+        write!(f, "OutputRedirect({:?}, {:?})", self.output_file, self.commands)
     }
 }
 
@@ -119,7 +119,7 @@ impl OutputRedirectAppend {
 
 impl fmt::Debug for OutputRedirectAppend {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "OutputRedirectAppend({:?})", self.output_file)
+        write!(f, "OutputRedirectAppend({:?}, {:?})", self.output_file, self.commands)
     }
 }
 
@@ -176,7 +176,7 @@ impl InputRedirect {
 
 impl fmt::Debug for InputRedirect {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "InputRedirect({:?})", self.input_file)
+        write!(f, "InputRedirect({:?}, {:?})", self.input_file, self.commands)
     }
 }
 

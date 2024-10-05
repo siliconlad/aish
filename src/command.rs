@@ -81,6 +81,19 @@ impl CommandType {
     }
 }
 
+impl fmt::Debug for CommandType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            CommandType::Builtin(cmd) => write!(f, "{:?}", cmd),
+            CommandType::External(cmd) => write!(f, "{:?}", cmd),
+            CommandType::Llm(cmd) => write!(f, "{:?}", cmd),
+            CommandType::InputRedirect(cmd) => write!(f, "{:?}", cmd),
+            CommandType::OutputRedirect(cmd) => write!(f, "{:?}", cmd),
+            CommandType::OutputRedirectAppend(cmd) => write!(f, "{:?}", cmd),
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct BuiltinCommand {
     tokens: Vec<String>,
