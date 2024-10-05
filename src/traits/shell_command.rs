@@ -1,7 +1,6 @@
 use crate::traits::Runnable;
 use dyn_clone::DynClone;
 use std::error::Error;
-use std::fmt::Display;
 use std::process::ChildStdout;
 
 pub trait ShellCommand: Runnable + DynClone {
@@ -10,9 +9,3 @@ pub trait ShellCommand: Runnable + DynClone {
     fn pipe(&self, stdin: Option<ChildStdout>) -> Result<Option<ChildStdout>, Box<dyn Error>>;
 }
 dyn_clone::clone_trait_object!(ShellCommand);
-
-impl Display for dyn ShellCommand {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} {}", self.cmd(), self.args().join(" "))
-    }
-}

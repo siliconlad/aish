@@ -1,5 +1,6 @@
 use crate::errors::SyntaxError;
 use crate::traits::{Runnable, ShellCommand};
+use std::fmt;
 use std::error::Error;
 use std::fs::File;
 use std::fs::OpenOptions;
@@ -48,6 +49,12 @@ impl OutputRedirect {
     fn open_file(&self) -> Result<File, Box<dyn Error>> {
         let file = File::create(&self.output_file)?;
         Ok(file)
+    }
+}
+
+impl fmt::Debug for OutputRedirect {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "OutputRedirect({:?})", self.output_file)
     }
 }
 
@@ -110,6 +117,12 @@ impl OutputRedirectAppend {
     }
 }
 
+impl fmt::Debug for OutputRedirectAppend {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "OutputRedirectAppend({:?})", self.output_file)
+    }
+}
+
 impl Runnable for OutputRedirectAppend {
     fn run(&self) -> Result<String, Box<dyn Error>> {
         let mut file = self.open_file()?;
@@ -158,6 +171,12 @@ impl InputRedirect {
             commands,
             input_file,
         })
+    }
+}
+
+impl fmt::Debug for InputRedirect {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "InputRedirect({:?})", self.input_file)
     }
 }
 

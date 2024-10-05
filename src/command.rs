@@ -6,6 +6,7 @@ use crate::redirect;
 use crate::token::Token;
 use crate::traits::{Runnable, ShellCommand};
 
+use std::fmt;
 use nix::unistd::{dup2, fork, pipe, ForkResult};
 use std::env;
 use std::error::Error;
@@ -80,7 +81,7 @@ impl CommandType {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct BuiltinCommand {
     tokens: Vec<String>,
 }
@@ -96,6 +97,12 @@ impl BuiltinCommand {
     pub fn run_builtin(&self) -> Result<(), Box<dyn Error>> {
         builtin(self.cmd(), self.args())?;
         Ok(())
+    }
+}
+
+impl fmt::Debug for BuiltinCommand {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "BuiltinCommand({:?})", self.tokens)
     }
 }
 
@@ -137,7 +144,7 @@ impl ShellCommand for BuiltinCommand {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct ExternalCommand {
     tokens: Vec<String>,
 }
@@ -148,6 +155,12 @@ impl ExternalCommand {
             return Err(SyntaxError::InternalError);
         }
         Ok(ExternalCommand { tokens })
+    }
+}
+
+impl fmt::Debug for ExternalCommand {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "ExternalCommand({:?})", self.tokens)
     }
 }
 
@@ -199,7 +212,7 @@ impl ShellCommand for ExternalCommand {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct LlmCommand {
     prompt: String,
     openai_client: OpenAIClient,
@@ -223,6 +236,12 @@ impl LlmCommand {
         let output = self.openai_client.generate_text(&context, 100).await?; // TODO: make this configurable
         debug!("Generated response: {}", output);
         Ok(output)
+    }
+}
+
+impl fmt::Debug for LlmCommand {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "LlmCommand({:?})", self.prompt)
     }
 }
 

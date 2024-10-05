@@ -1,4 +1,5 @@
 use crate::traits::{Runnable, ShellCommand};
+use std::fmt;
 use std::error::Error;
 use std::fs::File;
 use std::io::{BufReader, Read};
@@ -43,6 +44,19 @@ impl Pipeline {
 impl Default for Pipeline {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl fmt::Debug for Pipeline {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Pipeline(")?;
+        for (i, command) in self.commands.iter().enumerate() {
+            write!(f, "{:?}", command)?;
+            if i < self.commands.len() - 1 {
+                write!(f, " ")?;
+            }
+        }
+        write!(f, ")")
     }
 }
 

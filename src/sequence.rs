@@ -1,5 +1,6 @@
 use crate::traits::Runnable;
 use std::error::Error;
+use std::fmt;
 use std::ops::Index;
 
 #[derive(Clone)]
@@ -58,6 +59,19 @@ impl Index<usize> for Sequence {
     }
 }
 
+impl fmt::Debug for Sequence {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Sequence(")?;
+        for (i, command) in self.commands.iter().enumerate() {
+            write!(f, "{:?}", command)?;
+            if i < self.commands.len() - 1 {
+                write!(f, " ")?;
+            }
+        }
+        write!(f, ")")
+    }
+}
+
 #[derive(Clone)]
 pub struct AndSequence {
     commands: Vec<Box<dyn Runnable>>,
@@ -111,5 +125,18 @@ impl Index<usize> for AndSequence {
 
     fn index(&self, index: usize) -> &Self::Output {
         &self.commands[index]
+    }
+}
+
+impl fmt::Debug for AndSequence {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "AndSequence(")?;
+        for (i, command) in self.commands.iter().enumerate() {
+            write!(f, "{:?}", command)?;
+            if i < self.commands.len() - 1 {
+                write!(f, " ")?;
+            }
+        }
+        write!(f, ")")
     }
 }
