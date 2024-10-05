@@ -66,6 +66,20 @@ fn test_export_command() {
 }
 
 #[test]
+fn test_export_command_double_quotes() {
+    let (stdout, stderr) = run_shell_command("export FOO=BAR && echo \"$FOO\"");
+    assert_eq!(stdout, "BAR");
+    assert_eq!(stderr, "");
+}
+
+#[test]
+fn test_export_command_single_quotes() {
+    let (stdout, stderr) = run_shell_command("export FOO=BAR && echo '$FOO'");
+    assert_eq!(stdout, "$FOO");
+    assert_eq!(stderr, "");
+}
+
+#[test]
 fn test_exit_command() {
     let (stdout, stderr) = run_shell_command("exit");
     assert_eq!(stdout, "");
