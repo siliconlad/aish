@@ -1,3 +1,4 @@
+use crate::errors::RuntimeError;
 use std::error::Error;
 
 const BUILTINS: &[&str] = &["cd", "pwd", "exit", "echo", "export", "unset"];
@@ -41,6 +42,12 @@ pub fn cd(args: Vec<&str>) -> Result<String, Box<dyn Error>> {
     // Replace ~ with the home directory
     if path.starts_with("~/") {
         path = path.replace("~", &home);
+    }
+
+    // Check if path exists
+    if !std::path::Path::new(&path).exists() {
+        debug!("cd: no such file or directory: {}", path);
+        return Err(Box::new(RuntimeError::CommandFailed("cd: no such directory".into())));
     }
 
     std::env::set_current_dir(path)?;

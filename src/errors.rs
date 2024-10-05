@@ -8,8 +8,14 @@ pub enum SyntaxError {
     UnexpectedToken(String),
     #[error("Expected token")]
     ExpectedToken,
-    #[error("Invalid OPENAI_API_KEY")]
-    InvalidOpenAIKey,
     #[error("Internal Error")]
     InternalError,
+    #[error("Invalid OPENAI_API_KEY")]
+    InvalidOpenAIKey,
+}
+
+#[derive(Error, Debug)]
+pub enum RuntimeError {
+    #[error("Command failed: {0}")]
+    CommandFailed(String),
 }

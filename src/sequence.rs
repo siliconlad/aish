@@ -45,7 +45,10 @@ impl Default for Sequence {
 impl Runnable for Sequence {
     fn run(&self) -> Result<String, Box<dyn Error>> {
         for command in &self.commands {
-            let _ = command.run(); // Ignore error
+            match command.run() {
+                Ok(_) => continue,
+                Err(e) => eprintln!("{}", e),
+            }
         }
         Ok("".to_string())
     }
