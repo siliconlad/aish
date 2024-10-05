@@ -5,7 +5,6 @@ use crate::token::Token;
 use crate::traits::{Runnable, ShellCommand};
 
 use nix::unistd::{dup2, fork, pipe, ForkResult};
-use std::env;
 use std::error::Error;
 use std::io::Read;
 use std::os::fd::AsRawFd;
@@ -20,12 +19,10 @@ pub fn cmd(tokens: Vec<Token>) -> Result<Box<dyn ShellCommand>, Box<dyn Error>> 
     match &tokens[..] {
         [Token::DoubleQuoted(prompt)] => {
             debug!("Detected LLM command with tokens: {:?}", tokens);
-            let openai_client = if let Ok(api_key) = env::var("OPENAI_API_KEY") {
-                OpenAIClient::new(api_key)
-            } else {
-                return Err("OPENAI_API_KEY not set".into());
-            };
-            Ok(Box::new(LlmCommand::new(prompt.clone(), openai_client)))
+            Ok(Box::new(BuiltinCommand::new(vec![
+                "llm".to_string(),
+                prompt.to_string(),
+            ])?))
         }
         [Token::Plain(cmd), ..] if is_builtin(cmd) => {
             debug!("Detected builtin command: {:?}", tokens);
@@ -48,12 +45,10 @@ pub fn runnable(tokens: Vec<Token>) -> Result<Box<dyn Runnable>, Box<dyn Error>>
     match &tokens[..] {
         [Token::DoubleQuoted(prompt)] => {
             debug!("Detected LLM command with tokens: {:?}", tokens);
-            let openai_client = if let Ok(api_key) = env::var("OPENAI_API_KEY") {
-                OpenAIClient::new(api_key)
-            } else {
-                return Err("OPENAI_API_KEY not set".into());
-            };
-            Ok(Box::new(LlmCommand::new(prompt.clone(), openai_client)))
+            Ok(Box::new(LlmCommand::new(
+                prompt.clone(),
+                OpenAIClient::new(None)?,
+            )))
         }
         [Token::Plain(cmd), ..] if is_builtin(cmd) => {
             debug!("Detected builtin command: {:?}", tokens);
@@ -81,15 +76,15 @@ impl BuiltinCommand {
         Ok(BuiltinCommand { tokens })
     }
 
-    pub fn run_builtin(&self) -> Result<(), Box<dyn Error>> {
-        builtin(self.cmd(), self.args())?;
+    pub fn run_builtin(&self, stdin: Option<ChildStdout>) -> Result<(), Box<dyn Error>> {
+        builtin(self.cmd(), self.args(), stdin)?;
         Ok(())
     }
 }
 
 impl Runnable for BuiltinCommand {
     fn run(&self) -> Result<String, Box<dyn Error>> {
-        self.run_builtin()?;
+        self.run_builtin(None)?;
         Ok("".to_string())
     }
 }
@@ -103,7 +98,7 @@ impl ShellCommand for BuiltinCommand {
         self.tokens[1..].iter().map(|s| s.as_str()).collect()
     }
 
-    fn pipe(&self, _stdin: Option<ChildStdout>) -> Result<Option<ChildStdout>, Box<dyn Error>> {
+    fn pipe(&self, stdin: Option<ChildStdout>) -> Result<Option<ChildStdout>, Box<dyn Error>> {
         let (pipe_out_r, pipe_out_w) = pipe()?;
         let (pipe_err_r, pipe_err_w) = pipe()?;
 
@@ -118,7 +113,7 @@ impl ShellCommand for BuiltinCommand {
                 drop(pipe_err_r);
                 dup2(pipe_out_w.as_raw_fd(), 1)?;
                 dup2(pipe_err_w.as_raw_fd(), 2)?;
-                self.run_builtin()?;
+                self.run_builtin(stdin)?;
                 std::process::exit(0);
             }
         }

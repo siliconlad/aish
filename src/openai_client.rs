@@ -1,5 +1,6 @@
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
+use std::env;
 
 #[derive(Serialize)]
 struct Message {
@@ -36,11 +37,16 @@ pub struct OpenAIClient {
 }
 
 impl OpenAIClient {
-    pub fn new(api_key: String) -> Self {
-        OpenAIClient {
+    pub fn new(api_key: Option<String>) -> Result<Self, Box<dyn std::error::Error>> {
+        let key = match api_key {
+            Some(key) => key,
+            None => env::var("OPENAI_API_KEY")?,
+        };
+
+        Ok(OpenAIClient {
             client: Client::new(),
-            api_key,
-        }
+            api_key: key,
+        })
     }
 
     pub async fn generate_text(
