@@ -134,3 +134,10 @@ fn test_external_command_error() {
     assert_eq!(stdout, "");
     assert!(!stderr.is_empty());
 }
+
+#[test]
+fn test_non_utf8_output() {
+    let (stdout, stderr) = run_shell_command("cat /dev/random | head -n 1");
+    assert!(!stdout.is_empty());
+    assert_eq!(stderr, "");
+}
