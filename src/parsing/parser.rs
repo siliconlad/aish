@@ -48,7 +48,7 @@ pub fn parse_impl(tokens: &mut Scanner<Tokens>) -> Result<Sequence, SyntaxError>
                     final_commands.add(command.unpack_run());
                 }
             }
-            Token::Meta(m) if m == "&" => {
+            Token::Meta(m) if m == "&&" => {
                 tokens.next(); // Consume token
                 in_and_sequence = true;
                 if in_pipeline {
@@ -107,8 +107,8 @@ fn parse_cmd_impl(tokens: &mut Scanner<Tokens>) -> Result<CommandType, SyntaxErr
                 debug!("End of command (;)");
                 break;
             }
-            Token::Meta(m) if m == "&" => {
-                debug!("End of command (&)");
+            Token::Meta(m) if m == "&&" => {
+                debug!("End of command (&&)");
                 break;
             }
             Token::Meta(m) if m == "|" => {

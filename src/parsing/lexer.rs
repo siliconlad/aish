@@ -11,7 +11,7 @@ pub fn lex_impl(scanner: &mut Scanner<String>) -> Result<Tokens, SyntaxError> {
         }
 
         match scanner.peek().unwrap() {
-            '&' | '<' | ';' | '|' => {
+            '<' | ';' | '|' => {
                 debug!("Meta: {}", scanner.peek().unwrap());
                 buffer.push(scanner.next()).save(TokenType::Meta);
             }
@@ -24,6 +24,17 @@ pub fn lex_impl(scanner: &mut Scanner<String>) -> Result<Tokens, SyntaxError> {
                     debug!("Meta: >");
                 }
                 buffer.save(TokenType::Meta);
+            }
+            '&' => {
+                let c = scanner.next();
+                if Some('&') == scanner.peek() {
+                    debug!("Meta: &&");
+                    buffer.push(c);
+                    buffer.push(scanner.next());
+                    buffer.save(TokenType::Meta);
+                } else {
+                    return Err(SyntaxError::UnexpectedToken("&".to_string()));
+                }
             }
             ' ' => {
                 debug!("Whitespace");

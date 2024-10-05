@@ -1,4 +1,4 @@
-use std::io::{Read, Write};
+use std::io::Write;
 use std::process::{Command, Stdio};
 
 fn run_shell_command(input: &str) -> (String, String) {
@@ -100,8 +100,7 @@ fn test_output_redirection_append() {
 #[test]
 fn test_input_redirection() {
     let (stdout, stderr) = run_shell_command(
-        "echo Hello > test.txt && \
-         sed 's/H/h/g' < test.txt",
+        "echo Hello > test.txt && sed 's/H/h/g' < test.txt"
     );
     assert_eq!(stdout, "hello");
     assert_eq!(stderr, "");
