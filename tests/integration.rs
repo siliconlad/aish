@@ -59,6 +59,13 @@ fn test_pwd_command() {
 }
 
 #[test]
+fn test_export_command() {
+    let (stdout, stderr) = run_shell_command("export FOO=BAR && echo $FOO");
+    assert_eq!(stdout, "BAR");
+    assert_eq!(stderr, "");
+}
+
+#[test]
 fn test_exit_command() {
     let (stdout, stderr) = run_shell_command("exit");
     assert_eq!(stdout, "");
