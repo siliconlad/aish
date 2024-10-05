@@ -6,21 +6,27 @@ pub fn lex_impl(scanner: &mut Scanner<String>) -> Result<Tokens, SyntaxError> {
     let mut buffer = TokenBuffer::new();
     loop {
         if scanner.peek().is_none() {
+            debug!("Reached EOF");
             break;
         }
 
         match scanner.peek().unwrap() {
             '&' | '<' | ';' | '|' => {
+                debug!("Meta: {}", scanner.peek().unwrap());
                 buffer.push(scanner.next()).save(TokenType::Meta);
             }
             '>' => {
                 buffer.push(scanner.next());
                 if Some('>') == scanner.peek() {
+                    debug!("Meta: >>");
                     buffer.push(scanner.next());
+                } else {
+                    debug!("Meta: >");
                 }
                 buffer.save(TokenType::Meta);
             }
             ' ' => {
+                debug!("Whitespace");
                 scanner.next();
             }
             _ => {
@@ -32,10 +38,12 @@ pub fn lex_impl(scanner: &mut Scanner<String>) -> Result<Tokens, SyntaxError> {
 
                     if c.is_none() {
                         buffer.save(TokenType::Plain);
+                        debug!("EOF");
                         break;
                     }
 
-                    if is_escape(c.unwrap()) {
+                    else if is_escape(c.unwrap()) {
+                        debug!("Escape: {}", c.unwrap());
                         if escaped || quote_type.single() {
                             buffer.push(scanner.next());
                         } else {
@@ -43,7 +51,8 @@ pub fn lex_impl(scanner: &mut Scanner<String>) -> Result<Tokens, SyntaxError> {
                         }
                     }
 
-                    if is_meta(c.unwrap()) {
+                    else if is_meta(c.unwrap()) {
+                        debug!("Meta: {}", c.unwrap());
                         if escaped || quote_type.quoted() {
                             buffer.push(scanner.next());
                         } else {
@@ -52,7 +61,8 @@ pub fn lex_impl(scanner: &mut Scanner<String>) -> Result<Tokens, SyntaxError> {
                         }
                     }
 
-                    if is_whitespace(c.unwrap()) {
+                    else if is_whitespace(c.unwrap()) {
+                        debug!("Whitespace");
                         if escaped || quote_type.quoted() {
                             buffer.push(scanner.next());
                         } else {
@@ -62,28 +72,39 @@ pub fn lex_impl(scanner: &mut Scanner<String>) -> Result<Tokens, SyntaxError> {
                         }
                     }
 
-                    if is_double_quote(c.unwrap()) {
+                    else if is_double_quote(c.unwrap()) {
+                        debug!("Double quote");
+                        let c = scanner.next();
                         if escaped || quote_type.single() {
-                            buffer.push(scanner.next());
+                            buffer.push(c);
                         } else if quote_type.double() {
                             buffer.save(TokenType::DoubleQuoted);
                             quote_type = QuoteType::None;
+                            break;
                         } else {
                             buffer.save(TokenType::Plain);
                             quote_type = QuoteType::Double;
                         }
                     }
 
-                    if is_single_quote(c.unwrap()) {
+                    else if is_single_quote(c.unwrap()) {
+                        debug!("Single quote");
+                        let c = scanner.next();
                         if escaped || quote_type.double() {
-                            buffer.push(scanner.next());
+                            buffer.push(c);
                         } else if quote_type.single() {
                             buffer.save(TokenType::SingleQuoted);
                             quote_type = QuoteType::None;
+                            break;
                         } else {
                             buffer.save(TokenType::Plain);
                             quote_type = QuoteType::Single;
                         }
+                    }
+
+                    else {
+                        debug!("Char: {}", c.unwrap());
+                        buffer.push(scanner.next());
                     }
                 }
 
@@ -141,6 +162,7 @@ impl TokenBuffer {
         }
         let new_token = tokenize(self.token.clone(), token_type);
         self.tokens.push(new_token);
+        debug!("Saved token: {}", self.token);
         self.token.clear();
         true
     }

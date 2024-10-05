@@ -29,6 +29,7 @@ fn main() -> Result<()> {
         .append(true)
         .open(log_path)?;
     WriteLogger::init(LevelFilter::Debug, Config::default(), log_file).unwrap();
+    info!("Starting aish");
 
     // Setup readline
     let mut rl = DefaultEditor::new()?;
@@ -39,6 +40,7 @@ fn main() -> Result<()> {
         let buffer = match readline {
             Ok(line) => {
                 let _ = rl.add_history_entry(line.as_str());
+                debug!("Added input to history");
                 line
             }
             Err(ReadlineError::Interrupted) => break,
@@ -71,5 +73,6 @@ fn main() -> Result<()> {
         }
     }
     let _ = rl.save_history(history.as_path());
+    info!("Exiting aish");
     Ok(())
 }
