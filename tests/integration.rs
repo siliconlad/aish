@@ -164,6 +164,20 @@ fn test_export_command_double_quotes() {
 }
 
 #[test]
+fn test_export_command_double_quotes_with_text() {
+    let (stdout, stderr) = run_shell_command("export FOO=BAR && echo \"$FOO Hello, World!\"");
+    assert_eq!(stdout, "BAR Hello, World!");
+    assert_eq!(stderr, "");
+}
+
+#[test]
+fn test_export_command_escaped() {
+    let (stdout, stderr) = run_shell_command("export FOO=BAR && echo \\$FOO");
+    assert_eq!(stdout, "$FOO");
+    assert_eq!(stderr, "");
+}
+
+#[test]
 fn test_export_command_single_quotes() {
     let (stdout, stderr) = run_shell_command("export FOO=BAR && echo '$FOO'");
     assert_eq!(stdout, "$FOO");
