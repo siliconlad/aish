@@ -13,13 +13,13 @@ pub mod traits;
 extern crate log;
 extern crate simplelog;
 
-use std::env;
 use crate::traits::Runnable;
 use home::home_dir;
 use parsing::parse;
 use rustyline::error::ReadlineError;
 use rustyline::DefaultEditor;
 use simplelog::{Config, LevelFilter, WriteLogger};
+use std::env;
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::{BufRead, BufReader};
@@ -47,7 +47,7 @@ fn main() -> rustyline::Result<()> {
             Err(e) => {
                 eprintln!("Error: {}", e);
                 return Ok(());
-            },
+            }
         }
     } else {
         warn!("No .aishrc file found");
@@ -137,7 +137,10 @@ fn read_file(file_path: &PathBuf) -> Result<Vec<String>, std::io::Error> {
 }
 
 fn aishrc_path() -> Result<PathBuf, std::io::Error> {
-    let home = home_dir().ok_or(std::io::Error::new(std::io::ErrorKind::NotFound, "Unable to determine home directory"))?;
+    let home = home_dir().ok_or(std::io::Error::new(
+        std::io::ErrorKind::NotFound,
+        "Unable to determine home directory",
+    ))?;
     let aishrc_path: PathBuf = home.join(".aishrc");
     Ok(aishrc_path)
 }
