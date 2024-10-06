@@ -38,21 +38,8 @@ pub fn lex_impl(scanner: &mut Scanner<String>) -> Result<Tokens, SyntaxError> {
             }
             '$' => {
                 debug!("Variable");
-                scanner.next();
-                loop {
-                    let c = scanner.peek();
-                    if c.is_none() || is_break_point(c.unwrap()) {
-                        break;
-                    } else {
-                        buffer.push(scanner.next());
-                    }
-                }
-
-                if buffer.is_empty() {
-                    return Err(SyntaxError::UnexpectedToken("$".to_string()));
-                }
-
-                buffer.save(TokenType::Variable);
+                let variable_token = lex_variable(scanner)?;
+                buffer.save_token(variable_token.first().unwrap().clone());
             }
             ' ' => {
                 debug!("Whitespace");
@@ -86,26 +73,8 @@ pub fn lex_impl(scanner: &mut Scanner<String>) -> Result<Tokens, SyntaxError> {
                         }
 
                         debug!("Variable");
-                        scanner.next();
-                        if quote_type.double() {
-                            let mut var_buffer = TokenBuffer::new();
-                            loop {
-                                let c = scanner.peek();
-                                if c.is_none()
-                                    || is_break_point(c.unwrap())
-                                    || is_double_quote(c.unwrap())
-                                {
-                                    break;
-                                } else {
-                                    var_buffer.push(scanner.next());
-                                }
-                            }
-                            if var_buffer.is_empty() {
-                                return Err(SyntaxError::UnexpectedToken("$".to_string()));
-                            }
-                            var_buffer.save(TokenType::Variable);
-                            buffer.push_token(var_buffer.tokens().first().unwrap().clone());
-                        }
+                        let variable_token = lex_variable(scanner)?;
+                        buffer.push_token(variable_token.first().unwrap().clone());
                     } else if is_meta(c.unwrap()) {
                         debug!("Meta: {}", c.unwrap());
                         if escaped || quote_type.quoted() {
@@ -171,6 +140,30 @@ pub fn lex_impl(scanner: &mut Scanner<String>) -> Result<Tokens, SyntaxError> {
     Ok(buffer.tokens())
 }
 
+fn lex_variable(scanner: &mut Scanner<String>) -> Result<Tokens, SyntaxError> {
+    match scanner.peek() {
+        Some('$') => scanner.next(),
+        _ => return Err(SyntaxError::UnexpectedToken("$".to_string())),
+    };
+
+    let mut buffer = TokenBuffer::new();
+    loop {
+        let c = scanner.peek();
+        if c.is_none() || is_break_point(c.unwrap()) {
+            break;
+        } else {
+            buffer.push(scanner.next());
+        }
+    }
+
+    if buffer.is_empty() {
+        return Err(SyntaxError::UnexpectedToken("$".to_string()));
+    }
+
+    buffer.save(TokenType::Variable);
+    Ok(buffer.tokens())
+}
+
 #[derive(Debug, PartialEq, Eq)]
 enum QuoteType {
     None,
@@ -215,6 +208,11 @@ impl TokenBuffer {
         self
     }
 
+    fn save_token(&mut self, token: Token) -> bool {
+        self.tokens.push(token);
+        true
+    }
+
     fn save(&mut self, token_type: TokenType) -> bool {
         if self.token.is_empty() {
             return false;
@@ -236,7 +234,7 @@ impl TokenBuffer {
 }
 
 fn is_break_point(c: char) -> bool {
-    is_meta(c) || is_whitespace(c) || c == '$'
+    is_meta(c) || is_whitespace(c) || c == '$' || is_single_quote(c) || is_double_quote(c)
 }
 
 fn is_meta(c: char) -> bool {

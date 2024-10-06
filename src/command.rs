@@ -26,7 +26,7 @@ pub enum CommandType {
 impl CommandType {
     pub fn create(tokens: Vec<Token>) -> Result<CommandType, SyntaxError> {
         if tokens.is_empty() {
-            return Err(SyntaxError::ExpectedToken);
+            return Err(SyntaxError::ExpectedToken("".to_string()));
         }
 
         match &tokens[..] {
