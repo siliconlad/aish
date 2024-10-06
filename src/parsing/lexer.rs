@@ -104,7 +104,7 @@ pub fn lex_impl(scanner: &mut Scanner<String>) -> Result<Tokens, SyntaxError> {
                                 return Err(SyntaxError::UnexpectedToken("$".to_string()));
                             }
                             var_buffer.save(TokenType::Variable);
-                            buffer.push_token(var_buffer.tokens().get(0).unwrap().clone());
+                            buffer.push_token(var_buffer.tokens().first().unwrap().clone());
                         }
                     } else if is_meta(c.unwrap()) {
                         debug!("Meta: {}", c.unwrap());
