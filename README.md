@@ -60,3 +60,25 @@ Then create a file at `~/.aishrc` with the following:
 ```
 export OPENAI_API_KEY=<your key>
 ```
+
+## Shell Features
+
+`aish` syntax is inspired by Bash.
+
+Currently, the following features are implemented:
+
+- Aliases (`alias`)
+- Environment Variables (`export`)
+- Environment Variable Expansion (`$VARIABLE`)
+- Pipelining (`|`)
+- Redirection (`>`, `<`, `>>`)
+- Quoting (`"`, `'`)
+- Command Sequences (`;`, `&&`)
+- Tilde Expansion (`~`)
+- Escape Sequences (`\`)
+- Running commands on `PATH`
+- Builtin Commands (`cd`, `echo`, `pwd`, `exit`, `export`, `unset`, `llm`)
+
+Many more features are planned and possible.
+
+To suggest a feature, create an issue or comment on an existing issue.
