@@ -31,10 +31,6 @@ impl Scanner<Tokens> {
         self.input.get(self.index).cloned()
     }
 
-    pub fn peek_next(&self, index: usize) -> Option<Token> {
-        self.input.get(self.index + index).cloned()
-    }
-
     pub fn next(&mut self) -> Token {
         self.index += 1;
         self.input.get(self.index - 1).unwrap().clone()
