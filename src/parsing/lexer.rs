@@ -41,6 +41,11 @@ pub fn lex_impl(scanner: &mut Scanner<String>) -> Result<Tokens, SyntaxError> {
                 let variable_token = lex_variable(scanner)?;
                 buffer.save_token(variable_token.first().unwrap().clone());
             }
+            '~' => {
+                debug!("Tilde");
+                buffer.push(scanner.next());
+                buffer.save(TokenType::Tilde);
+            }
             ' ' => {
                 debug!("Whitespace");
                 scanner.next();

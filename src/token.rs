@@ -6,6 +6,7 @@ pub enum TokenType {
     DoubleQuoted,
     SingleQuoted,
     Variable,
+    Tilde,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -13,6 +14,7 @@ pub enum Token {
     Meta(String),
     Plain(String),
     Variable(String),
+    Tilde,
     DoubleQuoted(Vec<Token>),
     SingleQuoted(Vec<Token>),
 }
@@ -26,6 +28,7 @@ impl Token {
             Token::Variable(s) => std::env::var(s.clone()).unwrap_or("".to_string()),
             Token::DoubleQuoted(s) => join_tokens(s.to_vec()),
             Token::SingleQuoted(s) => join_tokens(s.to_vec()),
+            Token::Tilde => std::env::var("HOME").unwrap_or("".to_string()),
         }
     }
 }
@@ -38,6 +41,7 @@ impl fmt::Display for Token {
             Token::DoubleQuoted(s) => write!(f, "{:?}", s),
             Token::SingleQuoted(s) => write!(f, "{:?}", s),
             Token::Variable(s) => write!(f, "${:?}", s),
+            Token::Tilde => write!(f, "~"),
         }
     }
 }
@@ -49,6 +53,7 @@ pub fn tokenize(value: Vec<Token>, token_type: TokenType) -> Token {
         TokenType::DoubleQuoted => Token::DoubleQuoted(value),
         TokenType::SingleQuoted => Token::SingleQuoted(value),
         TokenType::Variable => Token::Variable(join_tokens(value)),
+        TokenType::Tilde => Token::Tilde,
     }
 }
 

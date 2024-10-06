@@ -47,12 +47,7 @@ pub fn exit() -> Result<String, Box<dyn Error>> {
 pub fn cd(args: Vec<String>) -> Result<String, Box<dyn Error>> {
     let home = std::env::var("HOME").unwrap();
     let path = args.first().map_or(home.as_str(), |s| s);
-    let mut path = path.to_string();
-
-    // Replace ~ with the home directory
-    if path.starts_with("~/") {
-        path = path.replace("~", &home);
-    }
+    let path = path.to_string();
 
     // Check if path exists
     if !std::path::Path::new(&path).exists() {

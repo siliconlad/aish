@@ -90,6 +90,20 @@ fn test_cd_command() {
 }
 
 #[test]
+fn test_cd_tilde_command() {
+    let (stdout, stderr) = run_shell_command("cd ~ && pwd");
+    assert_eq!(stdout, canonicalize_path(env::var("HOME").unwrap().as_str()));
+    assert_eq!(stderr, "");
+}
+
+#[test]
+fn test_cd_tilde_path() {
+    let (stdout, stderr) = run_shell_command("cd ~/ && pwd");
+    assert_eq!(stdout, canonicalize_path(env::var("HOME").unwrap().as_str()));
+    assert_eq!(stderr, "");
+}
+
+#[test]
 fn test_pipeline() {
     let (stdout, stderr) = run_shell_command("echo Hello | wc -c");
     assert_eq!(stdout, "6");
