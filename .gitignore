@@ -9,3 +9,6 @@
 
 # Testing
 *.txt
+
+# Pyenv
+.python-version

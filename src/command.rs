@@ -1,95 +1,121 @@
 use crate::builtins::builtin;
 use crate::builtins::is_builtin;
+use crate::errors::SyntaxError;
 use crate::openai_client::OpenAIClient;
+use crate::redirect;
 use crate::token::Token;
 use crate::traits::{Runnable, ShellCommand};
 
 use nix::unistd::{dup2, fork, pipe, ForkResult};
-use std::env;
 use std::error::Error;
+use std::fmt;
 use std::io::Read;
 use std::os::fd::AsRawFd;
 use std::process::{ChildStdout, Command, Stdio};
 use tokio::runtime::Runtime;
 
-pub fn cmd(tokens: Vec<Token>) -> Result<Box<dyn ShellCommand>, Box<dyn Error>> {
-    if tokens.is_empty() {
-        return Err("Tokens cannot be empty".into());
+pub enum CommandType {
+    Builtin(BuiltinCommand),
+    External(ExternalCommand),
+    Llm(LlmCommand),
+    InputRedirect(redirect::InputRedirect),
+    OutputRedirect(redirect::OutputRedirect),
+    OutputRedirectAppend(redirect::OutputRedirectAppend),
+}
+
+impl CommandType {
+    pub fn create(tokens: Vec<Token>) -> Result<CommandType, SyntaxError> {
+        if tokens.is_empty() {
+            return Err(SyntaxError::ExpectedToken);
+        }
+
+        match &tokens[..] {
+            [Token::DoubleQuoted(prompt)] => {
+                debug!("Detected LLM command with tokens: {:?}", tokens);
+                Ok(CommandType::Llm(LlmCommand::new(
+                    prompt.to_string(),
+                    OpenAIClient::new(None)?,
+                )))
+            }
+            [Token::Plain(cmd), ..] if is_builtin(cmd) => {
+                debug!("Detected builtin command: {:?}", tokens);
+                let string_tokens: Vec<String> =
+                    tokens.into_iter().map(|t| t.to_string()).collect();
+                Ok(CommandType::Builtin(BuiltinCommand::new(string_tokens)?))
+            }
+            _ => {
+                debug!("Detected external command: {:?}", tokens);
+                let string_tokens: Vec<String> =
+                    tokens.into_iter().map(|t| t.to_string()).collect();
+                Ok(CommandType::External(ExternalCommand::new(string_tokens)?))
+            }
+        }
     }
 
-    match &tokens[..] {
-        [Token::DoubleQuoted(prompt)] => {
-            debug!("Detected LLM command with tokens: {:?}", tokens);
-            let openai_client = if let Ok(api_key) = env::var("OPENAI_API_KEY") {
-                OpenAIClient::new(api_key)
-            } else {
-                return Err("OPENAI_API_KEY not set".into());
-            };
-            Ok(Box::new(LlmCommand::new(prompt.clone(), openai_client)))
+    pub fn unpack_cmd(self) -> Box<dyn ShellCommand> {
+        match self {
+            CommandType::Builtin(cmd) => Box::new(cmd),
+            CommandType::External(cmd) => Box::new(cmd),
+            CommandType::Llm(cmd) => Box::new(cmd),
+            CommandType::InputRedirect(cmd) => Box::new(cmd),
+            CommandType::OutputRedirect(cmd) => Box::new(cmd),
+            CommandType::OutputRedirectAppend(cmd) => Box::new(cmd),
         }
-        [Token::Plain(cmd), ..] if is_builtin(cmd) => {
-            debug!("Detected builtin command: {:?}", tokens);
-            let string_tokens: Vec<String> = tokens.into_iter().map(|t| t.to_string()).collect();
-            Ok(Box::new(BuiltinCommand::new(string_tokens)?))
-        }
-        _ => {
-            debug!("Detected external command: {:?}", tokens);
-            let string_tokens: Vec<String> = tokens.into_iter().map(|t| t.to_string()).collect();
-            Ok(Box::new(ExternalCommand::new(string_tokens)?))
+    }
+
+    pub fn unpack_run(self) -> Box<dyn Runnable> {
+        match self {
+            CommandType::Builtin(cmd) => Box::new(cmd),
+            CommandType::External(cmd) => Box::new(cmd),
+            CommandType::Llm(cmd) => Box::new(cmd),
+            CommandType::InputRedirect(cmd) => Box::new(cmd),
+            CommandType::OutputRedirect(cmd) => Box::new(cmd),
+            CommandType::OutputRedirectAppend(cmd) => Box::new(cmd),
         }
     }
 }
 
-pub fn runnable(tokens: Vec<Token>) -> Result<Box<dyn Runnable>, Box<dyn Error>> {
-    if tokens.is_empty() {
-        return Err("Tokens cannot be empty".into());
-    }
-
-    match &tokens[..] {
-        [Token::DoubleQuoted(prompt)] => {
-            debug!("Detected LLM command with tokens: {:?}", tokens);
-            let openai_client = if let Ok(api_key) = env::var("OPENAI_API_KEY") {
-                OpenAIClient::new(api_key)
-            } else {
-                return Err("OPENAI_API_KEY not set".into());
-            };
-            Ok(Box::new(LlmCommand::new(prompt.clone(), openai_client)))
-        }
-        [Token::Plain(cmd), ..] if is_builtin(cmd) => {
-            debug!("Detected builtin command: {:?}", tokens);
-            let string_tokens: Vec<String> = tokens.into_iter().map(|t| t.to_string()).collect();
-            Ok(Box::new(BuiltinCommand::new(string_tokens)?))
-        }
-        _ => {
-            debug!("Detected external command: {:?}", tokens);
-            let string_tokens: Vec<String> = tokens.into_iter().map(|t| t.to_string()).collect();
-            Ok(Box::new(ExternalCommand::new(string_tokens)?))
+impl fmt::Debug for CommandType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            CommandType::Builtin(cmd) => write!(f, "{:?}", cmd),
+            CommandType::External(cmd) => write!(f, "{:?}", cmd),
+            CommandType::Llm(cmd) => write!(f, "{:?}", cmd),
+            CommandType::InputRedirect(cmd) => write!(f, "{:?}", cmd),
+            CommandType::OutputRedirect(cmd) => write!(f, "{:?}", cmd),
+            CommandType::OutputRedirectAppend(cmd) => write!(f, "{:?}", cmd),
         }
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct BuiltinCommand {
     tokens: Vec<String>,
 }
 
 impl BuiltinCommand {
-    pub fn new(tokens: Vec<String>) -> Result<BuiltinCommand, Box<dyn Error>> {
+    pub fn new(tokens: Vec<String>) -> Result<BuiltinCommand, SyntaxError> {
         if tokens.is_empty() {
-            return Err("Tokens cannot be empty".into());
+            return Err(SyntaxError::InternalError);
         }
         Ok(BuiltinCommand { tokens })
     }
 
-    pub fn run_builtin(&self) -> Result<(), Box<dyn Error>> {
-        builtin(self.cmd(), self.args())?;
+    pub fn run_builtin(&self, stdin: Option<ChildStdout>) -> Result<(), Box<dyn Error>> {
+        builtin(self.cmd(), self.args(), stdin)?;
         Ok(())
+    }
+}
+
+impl fmt::Debug for BuiltinCommand {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "BuiltinCommand({:?})", self.tokens)
     }
 }
 
 impl Runnable for BuiltinCommand {
     fn run(&self) -> Result<String, Box<dyn Error>> {
-        self.run_builtin()?;
+        self.run_builtin(None)?;
         Ok("".to_string())
     }
 }
@@ -103,7 +129,7 @@ impl ShellCommand for BuiltinCommand {
         self.tokens[1..].iter().map(|s| s.as_str()).collect()
     }
 
-    fn pipe(&self, _stdin: Option<ChildStdout>) -> Result<Option<ChildStdout>, Box<dyn Error>> {
+    fn pipe(&self, stdin: Option<ChildStdout>) -> Result<Option<ChildStdout>, Box<dyn Error>> {
         let (pipe_out_r, pipe_out_w) = pipe()?;
         let (pipe_err_r, pipe_err_w) = pipe()?;
 
@@ -118,24 +144,30 @@ impl ShellCommand for BuiltinCommand {
                 drop(pipe_err_r);
                 dup2(pipe_out_w.as_raw_fd(), 1)?;
                 dup2(pipe_err_w.as_raw_fd(), 2)?;
-                self.run_builtin()?;
+                self.run_builtin(stdin)?;
                 std::process::exit(0);
             }
         }
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct ExternalCommand {
     tokens: Vec<String>,
 }
 
 impl ExternalCommand {
-    pub fn new(tokens: Vec<String>) -> Result<ExternalCommand, Box<dyn Error>> {
+    pub fn new(tokens: Vec<String>) -> Result<ExternalCommand, SyntaxError> {
         if tokens.is_empty() {
-            return Err("Tokens cannot be empty".into());
+            return Err(SyntaxError::InternalError);
         }
         Ok(ExternalCommand { tokens })
+    }
+}
+
+impl fmt::Debug for ExternalCommand {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "ExternalCommand({:?})", self.tokens)
     }
 }
 
@@ -146,10 +178,15 @@ impl Runnable for ExternalCommand {
             Err(e) => return Err(e.into()),
         };
         match child.wait() {
-            Ok(_) => {}
-            Err(e) => return Err(e.into()),
+            Ok(code) => {
+                if code.success() {
+                    Ok("".to_string())
+                } else {
+                    Err(format!("{}", code).into())
+                }
+            }
+            Err(e) => Err(e.into()),
         }
-        Ok("".to_string())
     }
 }
 
@@ -182,7 +219,7 @@ impl ShellCommand for ExternalCommand {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct LlmCommand {
     prompt: String,
     openai_client: OpenAIClient,
@@ -206,6 +243,12 @@ impl LlmCommand {
         let output = self.openai_client.generate_text(&context, 100).await?; // TODO: make this configurable
         debug!("Generated response: {}", output);
         Ok(output)
+    }
+}
+
+impl fmt::Debug for LlmCommand {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "LlmCommand({:?})", self.prompt)
     }
 }
 
