@@ -1,5 +1,6 @@
 use crate::traits::{Runnable, ShellCommand};
 use std::error::Error;
+use std::fmt;
 use std::fs::File;
 use std::io::{BufReader, Read, Write};
 use std::ops::Index;
@@ -13,11 +14,49 @@ pub struct Pipeline {
 }
 
 impl Pipeline {
-    pub fn new(commands: Vec<Box<dyn ShellCommand>>) -> Result<Pipeline, Box<dyn Error>> {
-        if commands.is_empty() {
-            return Err("Commands cannot be empty".into());
+    pub fn new() -> Pipeline {
+        Pipeline {
+            commands: Vec::new(),
         }
-        Ok(Pipeline { commands })
+    }
+
+    pub fn init(commands: Vec<Box<dyn ShellCommand>>) -> Pipeline {
+        Pipeline { commands }
+    }
+
+    pub fn add(&mut self, command: Box<dyn ShellCommand>) -> &mut Pipeline {
+        self.commands.push(command);
+        self
+    }
+
+    pub fn transfer(&mut self) -> Pipeline {
+        let commands = self.commands.clone();
+        self.clear();
+        Pipeline { commands }
+    }
+
+    pub fn clear(&mut self) -> &mut Pipeline {
+        self.commands.clear();
+        self
+    }
+}
+
+impl Default for Pipeline {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl fmt::Debug for Pipeline {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Pipeline(")?;
+        for (i, command) in self.commands.iter().enumerate() {
+            write!(f, "{:?}", command)?;
+            if i < self.commands.len() - 1 {
+                write!(f, ", ")?;
+            }
+        }
+        write!(f, ")")
     }
 }
 

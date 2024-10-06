@@ -116,10 +116,7 @@ fn test_output_redirection_append() {
 
 #[test]
 fn test_input_redirection() {
-    let (stdout, stderr) = run_shell_command(
-        "echo Hello > test.txt && \
-         sed 's/H/h/g' < test.txt",
-    );
+    let (stdout, stderr) = run_shell_command("echo Hello > test.txt && sed 's/H/h/g' < test.txt");
     assert_eq!(stdout, "hello");
     assert_eq!(stderr, "");
 }

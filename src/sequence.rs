@@ -1,5 +1,6 @@
 use crate::traits::Runnable;
 use std::error::Error;
+use std::fmt;
 use std::ops::Index;
 
 #[derive(Clone)]
@@ -8,15 +9,46 @@ pub struct Sequence {
 }
 
 impl Sequence {
-    pub fn new(commands: Vec<Box<dyn Runnable>>) -> Result<Sequence, Box<dyn Error>> {
-        Ok(Sequence { commands })
+    pub fn new() -> Sequence {
+        Sequence {
+            commands: Vec::new(),
+        }
+    }
+
+    pub fn init(commands: Vec<Box<dyn Runnable>>) -> Sequence {
+        Sequence { commands }
+    }
+
+    pub fn add(&mut self, command: Box<dyn Runnable>) -> &mut Sequence {
+        self.commands.push(command);
+        self
+    }
+
+    pub fn transfer(&mut self) -> Sequence {
+        let commands = self.commands.clone();
+        self.clear();
+        Sequence { commands }
+    }
+
+    pub fn clear(&mut self) -> &mut Sequence {
+        self.commands.clear();
+        self
+    }
+}
+
+impl Default for Sequence {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
 impl Runnable for Sequence {
     fn run(&self) -> Result<String, Box<dyn Error>> {
         for command in &self.commands {
-            let _ = command.run(); // Ignore error
+            match command.run() {
+                Ok(_) => continue,
+                Err(e) => eprintln!("{}", e),
+            }
         }
         Ok("".to_string())
     }
@@ -30,14 +62,55 @@ impl Index<usize> for Sequence {
     }
 }
 
+impl fmt::Debug for Sequence {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Sequence(")?;
+        for (i, command) in self.commands.iter().enumerate() {
+            write!(f, "{:?}", command)?;
+            if i < self.commands.len() - 1 {
+                write!(f, ", ")?;
+            }
+        }
+        write!(f, ")")
+    }
+}
+
 #[derive(Clone)]
 pub struct AndSequence {
     commands: Vec<Box<dyn Runnable>>,
 }
 
 impl AndSequence {
-    pub fn new(commands: Vec<Box<dyn Runnable>>) -> Result<AndSequence, Box<dyn Error>> {
-        Ok(AndSequence { commands })
+    pub fn new() -> AndSequence {
+        AndSequence {
+            commands: Vec::new(),
+        }
+    }
+
+    pub fn init(commands: Vec<Box<dyn Runnable>>) -> AndSequence {
+        AndSequence { commands }
+    }
+
+    pub fn add(&mut self, command: Box<dyn Runnable>) -> &mut AndSequence {
+        self.commands.push(command);
+        self
+    }
+
+    pub fn transfer(&mut self) -> AndSequence {
+        let commands = self.commands.clone();
+        self.clear();
+        AndSequence { commands }
+    }
+
+    pub fn clear(&mut self) -> &mut AndSequence {
+        self.commands.clear();
+        self
+    }
+}
+
+impl Default for AndSequence {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -55,5 +128,18 @@ impl Index<usize> for AndSequence {
 
     fn index(&self, index: usize) -> &Self::Output {
         &self.commands[index]
+    }
+}
+
+impl fmt::Debug for AndSequence {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "AndSequence(")?;
+        for (i, command) in self.commands.iter().enumerate() {
+            write!(f, "{:?}", command)?;
+            if i < self.commands.len() - 1 {
+                write!(f, ", ")?;
+            }
+        }
+        write!(f, ")")
     }
 }

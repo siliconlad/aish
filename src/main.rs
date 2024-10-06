@@ -1,18 +1,21 @@
 pub mod builtins;
 pub mod command;
+pub mod errors;
 pub mod openai_client;
+pub mod parsing;
 pub mod pipeline;
 pub mod redirect;
 pub mod sequence;
 pub mod token;
-pub mod tokenize;
 pub mod traits;
 
 #[macro_use]
 extern crate log;
 extern crate simplelog;
 
+use crate::traits::Runnable;
 use home::home_dir;
+use parsing::parse;
 use rustyline::error::ReadlineError;
 use rustyline::{DefaultEditor, Result};
 use simplelog::{Config, LevelFilter, WriteLogger};
@@ -26,6 +29,7 @@ fn main() -> Result<()> {
         .append(true)
         .open(log_path)?;
     WriteLogger::init(LevelFilter::Debug, Config::default(), log_file).unwrap();
+    info!("Starting aish");
 
     // Setup readline
     let mut rl = DefaultEditor::new()?;
@@ -33,9 +37,10 @@ fn main() -> Result<()> {
     let _ = rl.load_history(history.as_path());
     loop {
         let readline = rl.readline("> ");
-        let mut buffer = match readline {
+        let buffer = match readline {
             Ok(line) => {
                 let _ = rl.add_history_entry(line.as_str());
+                debug!("Added input to history");
                 line
             }
             Err(ReadlineError::Interrupted) => break,
@@ -48,7 +53,7 @@ fn main() -> Result<()> {
 
         // Convert the input into a command
         debug!("Tokenizing...");
-        let tokenized = match tokenize::tokenize(&mut buffer) {
+        let tokenized = match parse(buffer) {
             Ok(tokenized) => tokenized,
             Err(e) => {
                 eprintln!("{}", e);
@@ -68,5 +73,6 @@ fn main() -> Result<()> {
         }
     }
     let _ = rl.save_history(history.as_path());
+    info!("Exiting aish");
     Ok(())
 }

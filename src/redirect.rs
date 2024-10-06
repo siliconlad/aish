@@ -1,5 +1,7 @@
+use crate::errors::SyntaxError;
 use crate::traits::{Runnable, ShellCommand};
 use std::error::Error;
+use std::fmt;
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::Read;
@@ -34,9 +36,9 @@ impl OutputRedirect {
     pub fn new(
         commands: Vec<Box<dyn ShellCommand>>,
         output_file: String,
-    ) -> Result<Self, Box<dyn Error>> {
+    ) -> Result<Self, SyntaxError> {
         if commands.len() != 1 {
-            return Err("Output redirect must have exactly one command".into());
+            return Err(SyntaxError::InternalError);
         }
         Ok(Self {
             commands,
@@ -47,6 +49,16 @@ impl OutputRedirect {
     fn open_file(&self) -> Result<File, Box<dyn Error>> {
         let file = File::create(&self.output_file)?;
         Ok(file)
+    }
+}
+
+impl fmt::Debug for OutputRedirect {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "OutputRedirect({:?}, {:?})",
+            self.output_file, self.commands
+        )
     }
 }
 
@@ -90,9 +102,9 @@ impl OutputRedirectAppend {
     pub fn new(
         commands: Vec<Box<dyn ShellCommand>>,
         output_file: String,
-    ) -> Result<Self, Box<dyn Error>> {
+    ) -> Result<Self, SyntaxError> {
         if commands.len() != 1 {
-            return Err("Output redirect must have exactly one command".into());
+            return Err(SyntaxError::InternalError);
         }
         Ok(Self {
             commands,
@@ -106,6 +118,16 @@ impl OutputRedirectAppend {
             .create(true)
             .open(&self.output_file)?;
         Ok(file)
+    }
+}
+
+impl fmt::Debug for OutputRedirectAppend {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "OutputRedirectAppend({:?}, {:?})",
+            self.output_file, self.commands
+        )
     }
 }
 
@@ -149,14 +171,24 @@ impl InputRedirect {
     pub fn new(
         commands: Vec<Box<dyn ShellCommand>>,
         input_file: String,
-    ) -> Result<Self, Box<dyn Error>> {
+    ) -> Result<Self, SyntaxError> {
         if commands.len() != 1 {
-            return Err("Input redirect must have exactly one command".into());
+            return Err(SyntaxError::InternalError);
         }
         Ok(Self {
             commands,
             input_file,
         })
+    }
+}
+
+impl fmt::Debug for InputRedirect {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "InputRedirect({:?}, {:?})",
+            self.input_file, self.commands
+        )
     }
 }
 
