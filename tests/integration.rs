@@ -93,14 +93,20 @@ fn test_cd_command() {
 #[test]
 fn test_cd_tilde_command() {
     let (stdout, stderr, _) = run_shell_command("cd ~ && pwd");
-    assert_eq!(stdout, canonicalize_path(env::var("HOME").unwrap().as_str()));
+    assert_eq!(
+        stdout,
+        canonicalize_path(env::var("HOME").unwrap().as_str())
+    );
     assert_eq!(stderr, "");
 }
 
 #[test]
 fn test_cd_tilde_path() {
     let (stdout, stderr, _) = run_shell_command("cd ~/ && pwd");
-    assert_eq!(stdout, canonicalize_path(env::var("HOME").unwrap().as_str()));
+    assert_eq!(
+        stdout,
+        canonicalize_path(env::var("HOME").unwrap().as_str())
+    );
     assert_eq!(stderr, "");
 }
 
@@ -128,14 +134,23 @@ fn test_tilde_variable() {
 #[test]
 fn test_tilde_variable_value() {
     let (stdout, stderr, _) = run_shell_command("export FOO=~ && echo $FOO");
-    assert_eq!(stdout, canonicalize_path(env::var("HOME").unwrap().as_str()));
+    assert_eq!(
+        stdout,
+        canonicalize_path(env::var("HOME").unwrap().as_str())
+    );
     assert_eq!(stderr, "");
 }
 
 #[test]
 fn test_tilde_variable_value_path() {
     let (stdout, stderr, _) = run_shell_command("export FOO=~/Documents && echo $FOO");
-    assert_eq!(stdout, format!("{}/Documents", canonicalize_path(env::var("HOME").unwrap().as_str())));
+    assert_eq!(
+        stdout,
+        format!(
+            "{}/Documents",
+            canonicalize_path(env::var("HOME").unwrap().as_str())
+        )
+    );
     assert_eq!(stderr, "");
 }
 
@@ -173,7 +188,8 @@ fn test_output_redirection_append() {
 
 #[test]
 fn test_input_redirection() {
-    let (stdout, stderr, _) = run_shell_command("echo Hello > test.txt && sed 's/H/h/g' < test.txt");
+    let (stdout, stderr, _) =
+        run_shell_command("echo Hello > test.txt && sed 's/H/h/g' < test.txt");
     assert_eq!(stdout, "hello");
     assert_eq!(stderr, "");
 }

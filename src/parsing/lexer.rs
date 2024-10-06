@@ -48,13 +48,11 @@ pub fn lex_impl(scanner: &mut Scanner<String>) -> Result<Tokens, SyntaxError> {
             '~' => {
                 debug!("Tilde");
                 let c = scanner.peek_next(1);
-                if c.is_none() {
-                    scanner.next();
-                    buffer.push_token(Token::Tilde);
-                } else if c.unwrap() == '/' {
-                    scanner.next();
-                    buffer.push_token(Token::Tilde);
-                } else if is_meta(c.unwrap()) || is_whitespace(c.unwrap()) {
+                if c.is_none()
+                    || c.unwrap() == '/'
+                    || is_meta(c.unwrap())
+                    || is_whitespace(c.unwrap())
+                {
                     scanner.next();
                     buffer.push_token(Token::Tilde);
                 } else {
