@@ -1,5 +1,6 @@
 use std::fmt;
 
+#[derive(Clone, Debug, PartialEq)]
 pub enum TokenType {
     Meta,
     Plain,
@@ -7,6 +8,7 @@ pub enum TokenType {
     SingleQuoted,
     Variable,
     Tilde,
+    Group,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -15,6 +17,7 @@ pub enum Token {
     Plain(String),
     Variable(String),
     Tilde,
+    Group(Vec<Token>),
     DoubleQuoted(Vec<Token>),
     SingleQuoted(Vec<Token>),
 }
@@ -29,6 +32,7 @@ impl Token {
             Token::DoubleQuoted(s) => join_tokens(s.to_vec()),
             Token::SingleQuoted(s) => join_tokens(s.to_vec()),
             Token::Tilde => std::env::var("HOME").unwrap_or("".to_string()),
+            Token::Group(s) => join_tokens(s.to_vec()),
         }
     }
 }
@@ -42,6 +46,7 @@ impl fmt::Display for Token {
             Token::SingleQuoted(s) => write!(f, "{:?}", s),
             Token::Variable(s) => write!(f, "${:?}", s),
             Token::Tilde => write!(f, "~"),
+            Token::Group(s) => write!(f, "{:?}", s),
         }
     }
 }
@@ -54,6 +59,7 @@ pub fn tokenize(value: Vec<Token>, token_type: TokenType) -> Token {
         TokenType::SingleQuoted => Token::SingleQuoted(value),
         TokenType::Variable => Token::Variable(join_tokens(value)),
         TokenType::Tilde => Token::Tilde,
+        TokenType::Group => Token::Group(value),
     }
 }
 

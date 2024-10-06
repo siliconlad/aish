@@ -71,7 +71,15 @@ pub fn export(args: Vec<String>) -> Result<String, Box<dyn Error>> {
         return Err("export: too many arguments".into());
     } else {
         let (key, value) = args.first().unwrap().split_once("=").unwrap();
-        std::env::set_var(key, value);
+
+        if value.eq("~") || value.starts_with("~/") {
+            let home = std::env::var("HOME").unwrap();
+            let value = value.replace("~", home.as_str());
+            std::env::set_var(key, value);
+        } else {
+            std::env::set_var(key, value);
+        }
+
         Ok("".to_string())
     }
 }

@@ -16,6 +16,10 @@ impl Scanner<String> {
         self.input.chars().nth(self.index)
     }
 
+    pub fn peek_next(&self, index: usize) -> Option<char> {
+        self.input.chars().nth(self.index + index)
+    }
+
     pub fn next(&mut self) -> char {
         self.index += 1;
         self.input.chars().nth(self.index - 1).unwrap()
@@ -25,6 +29,10 @@ impl Scanner<String> {
 impl Scanner<Tokens> {
     pub fn peek(&self) -> Option<Token> {
         self.input.get(self.index).cloned()
+    }
+
+    pub fn peek_next(&self, index: usize) -> Option<Token> {
+        self.input.get(self.index + index).cloned()
     }
 
     pub fn next(&mut self) -> Token {
