@@ -68,16 +68,16 @@ export OPENAI_API_KEY=<your key>
 Currently, the following features are implemented:
 
 - Aliases (`alias`)
-- Environment Variables (`export`)
-- Environment Variable Expansion (`$VARIABLE`)
+- Environment variables (`export`)
+- Environment variable expansion (`$VARIABLE`)
 - Pipelining (`|`)
 - Redirection (`>`, `<`, `>>`)
 - Quoting (`"`, `'`)
-- Command Sequences (`;`, `&&`)
-- Tilde Expansion (`~`)
-- Escape Sequences (`\`)
-- Running commands on `PATH`
-- Builtin Commands (`cd`, `echo`, `pwd`, `exit`, `export`, `unset`, `llm`)
+- Command sequences (`;`, `&&`)
+- Tilde expansion (`~`)
+- Escape sequences (`\`)
+- Builtin commands (`cd`, `echo`, `pwd`, `exit`, `export`, `unset`, `llm`)
+- Run exectuables on `PATH`
 
 Many more features are planned and possible.
 
