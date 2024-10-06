@@ -48,7 +48,7 @@ pub fn lex_impl(scanner: &mut Scanner<String>) -> Result<Tokens, SyntaxError> {
                     }
                 }
 
-                if buffer.token.is_empty() {
+                if buffer.is_empty() {
                     return Err(SyntaxError::UnexpectedToken("$".to_string()));
                 }
 
@@ -100,11 +100,11 @@ pub fn lex_impl(scanner: &mut Scanner<String>) -> Result<Tokens, SyntaxError> {
                                     var_buffer.push(scanner.next());
                                 }
                             }
-                            if var_buffer.token.is_empty() {
+                            if var_buffer.is_empty() {
                                 return Err(SyntaxError::UnexpectedToken("$".to_string()));
                             }
                             var_buffer.save(TokenType::Variable);
-                            buffer.push_token(var_buffer.tokens()[0].clone());
+                            buffer.push_token(var_buffer.tokens().get(0).unwrap().clone());
                         }
                     } else if is_meta(c.unwrap()) {
                         debug!("Meta: {}", c.unwrap());
@@ -228,6 +228,10 @@ impl TokenBuffer {
 
     fn tokens(&self) -> Tokens {
         self.tokens.clone()
+    }
+
+    fn is_empty(&self) -> bool {
+        self.token.is_empty()
     }
 }
 
