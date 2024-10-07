@@ -5,6 +5,8 @@ A shell built with AI at the core.
 
 </div>
 
+
+Checkout the blog post on how we built it [here](https://siliconlad.com/blog/aish/).
 > This shell is still in the early stages of development and is **not ready** for production use.
 
 ## Features
@@ -27,13 +29,6 @@ Bonjour
 ```
 
 **Pipe files into LLMs**
-
-```
-> cat passwords.txt | "summarize"
-This is a file with a list of passwords.
-```
-
-**Utilise builtin `llm` command**
 
 ```
 > echo "What is 2 + 2?" > prompt.txt
