@@ -74,11 +74,11 @@ impl Runnable for OutputRedirect {
 }
 
 impl ShellCommand for OutputRedirect {
-    fn cmd(&self) -> &str {
+    fn cmd(&self) -> String {
         self.commands[0].cmd()
     }
 
-    fn args(&self) -> Vec<&str> {
+    fn args(&self) -> Vec<String> {
         self.commands[0].args()
     }
 
@@ -143,11 +143,11 @@ impl Runnable for OutputRedirectAppend {
 }
 
 impl ShellCommand for OutputRedirectAppend {
-    fn cmd(&self) -> &str {
+    fn cmd(&self) -> String {
         self.commands[0].cmd()
     }
 
-    fn args(&self) -> Vec<&str> {
+    fn args(&self) -> Vec<String> {
         self.commands[0].args()
     }
 
@@ -214,11 +214,11 @@ impl Runnable for InputRedirect {
 }
 
 impl ShellCommand for InputRedirect {
-    fn cmd(&self) -> &str {
+    fn cmd(&self) -> String {
         self.commands[0].cmd()
     }
 
-    fn args(&self) -> Vec<&str> {
+    fn args(&self) -> Vec<String> {
         self.commands[0].args()
     }
 

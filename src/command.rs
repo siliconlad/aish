@@ -3,7 +3,7 @@ use crate::builtins::is_builtin;
 use crate::errors::SyntaxError;
 use crate::openai_client::OpenAIClient;
 use crate::redirect;
-use crate::token::Token;
+use crate::token::{join_tokens, Token};
 use crate::traits::{Runnable, ShellCommand};
 
 use nix::unistd::{dup2, fork, pipe, ForkResult};
@@ -26,28 +26,24 @@ pub enum CommandType {
 impl CommandType {
     pub fn create(tokens: Vec<Token>) -> Result<CommandType, SyntaxError> {
         if tokens.is_empty() {
-            return Err(SyntaxError::ExpectedToken);
+            return Err(SyntaxError::ExpectedToken("".to_string()));
         }
 
         match &tokens[..] {
             [Token::DoubleQuoted(prompt)] => {
                 debug!("Detected LLM command with tokens: {:?}", tokens);
                 Ok(CommandType::Llm(LlmCommand::new(
-                    prompt.to_string(),
+                    join_tokens(prompt.to_vec()),
                     OpenAIClient::new(None)?,
                 )))
             }
             [Token::Plain(cmd), ..] if is_builtin(cmd) => {
                 debug!("Detected builtin command: {:?}", tokens);
-                let string_tokens: Vec<String> =
-                    tokens.into_iter().map(|t| t.to_string()).collect();
-                Ok(CommandType::Builtin(BuiltinCommand::new(string_tokens)?))
+                Ok(CommandType::Builtin(BuiltinCommand::new(tokens)?))
             }
             _ => {
                 debug!("Detected external command: {:?}", tokens);
-                let string_tokens: Vec<String> =
-                    tokens.into_iter().map(|t| t.to_string()).collect();
-                Ok(CommandType::External(ExternalCommand::new(string_tokens)?))
+                Ok(CommandType::External(ExternalCommand::new(tokens)?))
             }
         }
     }
@@ -90,11 +86,11 @@ impl fmt::Debug for CommandType {
 
 #[derive(Clone)]
 pub struct BuiltinCommand {
-    tokens: Vec<String>,
+    tokens: Vec<Token>,
 }
 
 impl BuiltinCommand {
-    pub fn new(tokens: Vec<String>) -> Result<BuiltinCommand, SyntaxError> {
+    pub fn new(tokens: Vec<Token>) -> Result<BuiltinCommand, SyntaxError> {
         if tokens.is_empty() {
             return Err(SyntaxError::InternalError);
         }
@@ -115,18 +111,19 @@ impl fmt::Debug for BuiltinCommand {
 
 impl Runnable for BuiltinCommand {
     fn run(&self) -> Result<String, Box<dyn Error>> {
+        debug!("Running builtin: {:?}", self);
         self.run_builtin(None)?;
         Ok("".to_string())
     }
 }
 
 impl ShellCommand for BuiltinCommand {
-    fn cmd(&self) -> &str {
-        &self.tokens[0]
+    fn cmd(&self) -> String {
+        self.tokens[0].resolve()
     }
 
-    fn args(&self) -> Vec<&str> {
-        self.tokens[1..].iter().map(|s| s.as_str()).collect()
+    fn args(&self) -> Vec<String> {
+        self.tokens[1..].iter().map(|s| s.resolve()).collect()
     }
 
     fn pipe(&self, stdin: Option<ChildStdout>) -> Result<Option<ChildStdout>, Box<dyn Error>> {
@@ -153,11 +150,11 @@ impl ShellCommand for BuiltinCommand {
 
 #[derive(Clone)]
 pub struct ExternalCommand {
-    tokens: Vec<String>,
+    tokens: Vec<Token>,
 }
 
 impl ExternalCommand {
-    pub fn new(tokens: Vec<String>) -> Result<ExternalCommand, SyntaxError> {
+    pub fn new(tokens: Vec<Token>) -> Result<ExternalCommand, SyntaxError> {
         if tokens.is_empty() {
             return Err(SyntaxError::InternalError);
         }
@@ -173,6 +170,7 @@ impl fmt::Debug for ExternalCommand {
 
 impl Runnable for ExternalCommand {
     fn run(&self) -> Result<String, Box<dyn Error>> {
+        debug!("Running external: {:?}", self);
         let mut child = match Command::new(self.cmd()).args(self.args()).spawn() {
             Ok(child) => child,
             Err(e) => return Err(e.into()),
@@ -191,12 +189,12 @@ impl Runnable for ExternalCommand {
 }
 
 impl ShellCommand for ExternalCommand {
-    fn cmd(&self) -> &str {
-        &self.tokens[0]
+    fn cmd(&self) -> String {
+        self.tokens[0].resolve()
     }
 
-    fn args(&self) -> Vec<&str> {
-        self.tokens[1..].iter().map(|s| s.as_str()).collect()
+    fn args(&self) -> Vec<String> {
+        self.tokens[1..].iter().map(|s| s.resolve()).collect()
     }
 
     fn pipe(&self, stdin: Option<ChildStdout>) -> Result<Option<ChildStdout>, Box<dyn Error>> {
@@ -254,6 +252,7 @@ impl fmt::Debug for LlmCommand {
 
 impl Runnable for LlmCommand {
     fn run(&self) -> Result<String, Box<dyn Error>> {
+        debug!("Running llm: {:?}", self);
         let runtime = Runtime::new().unwrap();
         let output = runtime.block_on(self.generate_response(None))?;
         Ok(output)
@@ -261,12 +260,12 @@ impl Runnable for LlmCommand {
 }
 
 impl ShellCommand for LlmCommand {
-    fn cmd(&self) -> &str {
-        "llm"
+    fn cmd(&self) -> String {
+        "llm".to_string()
     }
 
-    fn args(&self) -> Vec<&str> {
-        vec![&self.prompt]
+    fn args(&self) -> Vec<String> {
+        vec![self.prompt.clone()]
     }
 
     fn pipe(&self, stdin: Option<ChildStdout>) -> Result<Option<ChildStdout>, Box<dyn Error>> {

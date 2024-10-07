@@ -65,7 +65,7 @@ pub fn parse_impl(tokens: &mut Scanner<Tokens>) -> Result<Sequence, SyntaxError>
                 pipeline.add(command.unpack_cmd());
             }
             _ => {
-                let token = tokens.next().to_string();
+                let token = tokens.next().resolve();
                 return Err(SyntaxError::UnexpectedToken(token));
             }
         }
@@ -118,7 +118,7 @@ fn parse_cmd_impl(tokens: &mut Scanner<Tokens>) -> Result<CommandType, SyntaxErr
             Token::Meta(m) if m == "<" => {
                 debug!("Input redirect");
                 tokens.next();
-                let file_name = tokens.next().to_string();
+                let file_name = tokens.next().resolve();
                 debug!("Input redirect file name: {}", file_name);
                 command = CommandType::InputRedirect(InputRedirect::new(
                     vec![command.unpack_cmd()],
@@ -128,7 +128,7 @@ fn parse_cmd_impl(tokens: &mut Scanner<Tokens>) -> Result<CommandType, SyntaxErr
             Token::Meta(m) if m == ">" => {
                 debug!("Output redirect");
                 tokens.next();
-                let file_name = tokens.next().to_string();
+                let file_name = tokens.next().resolve();
                 debug!("Output redirect file name: {}", file_name);
                 command = CommandType::OutputRedirect(OutputRedirect::new(
                     vec![command.unpack_cmd()],
@@ -138,7 +138,7 @@ fn parse_cmd_impl(tokens: &mut Scanner<Tokens>) -> Result<CommandType, SyntaxErr
             Token::Meta(m) if m == ">>" => {
                 debug!("Output redirect append");
                 tokens.next();
-                let file_name = tokens.next().to_string();
+                let file_name = tokens.next().resolve();
                 debug!("Output redirect append file name: {}", file_name);
                 command = CommandType::OutputRedirectAppend(OutputRedirectAppend::new(
                     vec![command.unpack_cmd()],
@@ -146,7 +146,7 @@ fn parse_cmd_impl(tokens: &mut Scanner<Tokens>) -> Result<CommandType, SyntaxErr
                 )?);
             }
             _ => {
-                let token = tokens.next().to_string();
+                let token = tokens.next().resolve();
                 debug!("Unexpected token: {}", token);
                 return Err(SyntaxError::UnexpectedToken(token));
             }
