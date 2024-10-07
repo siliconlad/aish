@@ -256,3 +256,114 @@ fn test_export_command_single_quotes() {
     assert_eq!(stdout, "$FOO");
     assert_eq!(stderr, "");
 }
+
+#[test]
+fn test_alias_simple() {
+    let (stdout, stderr, _) = run_shell_command("alias ll='ls -l' && alias");
+    assert!(stdout.contains("ll='ls -l'"));
+    assert_eq!(stderr, "");
+}
+
+#[test]
+fn test_alias_multiple_words() {
+    let (stdout, stderr, _) = run_shell_command("alias greet='echo \"Hello, World!\"' && alias");
+    assert!(stdout.contains("greet='echo \"Hello, World!\"'"));
+    assert_eq!(stderr, "");
+}
+
+#[test]
+fn test_alias_list_all() {
+    let (stdout, stderr, _) = run_shell_command("alias a='echo A' && alias b='echo B' && alias");
+    assert!(stdout.contains("a='echo A'"));
+    assert!(stdout.contains("b='echo B'"));
+    assert_eq!(stderr, "");
+}
+
+#[test]
+fn test_alias_view_specific() {
+    let (stdout, stderr, _) = run_shell_command("alias ll='ls -l' && alias ll");
+    assert_eq!(stdout, "ll='ls -l'");
+    assert_eq!(stderr, "");
+}
+
+#[test]
+fn test_alias_using_another_alias() {
+    let (stdout, stderr, _) = run_shell_command("alias ll='ls -l' && alias la='ll -a' && alias la");
+    assert_eq!(stdout, "la='ll -a'");
+    assert_eq!(stderr, "");
+}
+
+#[test]
+fn test_alias_quotes() {
+    let (stdout, stderr, _) = run_shell_command(
+        "alias echo_quote='echo \"This is a quoted string\"' && alias echo_quote",
+    );
+    assert_eq!(stdout, "echo_quote='echo \"This is a quoted string\"'");
+    assert_eq!(stderr, "");
+}
+
+#[test]
+fn test_alias_with_arguments() {
+    let (stdout, stderr, _) = run_shell_command("alias gitc='git commit -m' && alias gitc");
+    assert_eq!(stdout, "gitc='git commit -m'");
+    assert_eq!(stderr, "");
+}
+
+#[test]
+fn test_alias_with_special_characters() {
+    let (stdout, stderr, _) =
+        run_shell_command("alias print_star='echo \"*\"' && alias print_star");
+    assert_eq!(stdout, "print_star='echo \"*\"'");
+    assert_eq!(stderr, "");
+}
+
+#[test]
+fn test_alias_invalid_creation() {
+    let (stdout, stderr, _) = run_shell_command("alias invalid_alias");
+    assert_eq!(stdout, "");
+    assert!(stderr.contains("Alias 'invalid_alias' not found"));
+}
+
+#[test]
+fn test_alias_with_environment_variables() {
+    let (stdout, stderr, _) = run_shell_command("alias show_home='echo $HOME' && alias show_home");
+    assert_eq!(stdout, "show_home='echo $HOME'");
+    assert_eq!(stderr, "");
+}
+
+#[test]
+fn test_alias_with_pipeline() {
+    let (stdout, stderr, _) =
+        run_shell_command("alias count_files='ls | wc -l' && alias count_files");
+    assert_eq!(stdout, "count_files='ls | wc -l'");
+    assert_eq!(stderr, "");
+}
+
+#[test]
+fn test_alias_with_redirection() {
+    let (stdout, stderr, _) =
+        run_shell_command("alias log_date='date > date.log' && alias log_date");
+    assert_eq!(stdout, "log_date='date > date.log'");
+    assert_eq!(stderr, "");
+}
+
+#[test]
+fn test_alias_execution() {
+    let (stdout, stderr, _) = run_shell_command("alias greet='echo \"Hello, World!\"' && greet");
+    assert_eq!(stdout, "Hello, World!");
+    assert_eq!(stderr, "");
+}
+
+#[test]
+fn test_alias_overwrite() {
+    let (stdout, stderr, _) = run_shell_command("alias a='echo A' && alias a='echo B' && alias a");
+    assert_eq!(stdout, "a='echo B'");
+    assert_eq!(stderr, "");
+}
+
+#[test]
+fn test_alias_persistence() {
+    run_shell_command("alias persistent='echo Persistent'");
+    let (stdout2, _, _) = run_shell_command("alias persistent");
+    assert_eq!(stdout2, ""); // The alias should not persist between shell instances
+}
