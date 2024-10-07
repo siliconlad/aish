@@ -158,11 +158,14 @@ fn aishrc_path() -> Result<PathBuf, std::io::Error> {
 fn expand_aliases(aliases: &HashMap<String, String>, buffer: &str) -> String {
     let mut temp_aliases = aliases.clone();
 
-    buffer.split(';')
+    buffer
+        .split(';')
         .map(|command| {
-            command.split("&&")
+            command
+                .split("&&")
                 .map(|and_command| {
-                    and_command.split('|')
+                    and_command
+                        .split('|')
                         .map(|pipe_command| expand_single_command(&mut temp_aliases, pipe_command))
                         .collect::<Vec<_>>()
                         .join(" | ")
@@ -175,7 +178,7 @@ fn expand_aliases(aliases: &HashMap<String, String>, buffer: &str) -> String {
 }
 
 fn expand_single_command(temp_aliases: &mut HashMap<String, String>, command: &str) -> String {
-    let mut words: Vec<String> = command.trim().split_whitespace().map(String::from).collect();
+    let mut words: Vec<String> = command.split_whitespace().map(String::from).collect();
 
     if words.is_empty() {
         return String::new();
