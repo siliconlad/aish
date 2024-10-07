@@ -6,8 +6,8 @@ pub enum SyntaxError {
     UnclosedQuote,
     #[error("Unexpected token: {0}")]
     UnexpectedToken(String),
-    #[error("Expected token")]
-    ExpectedToken,
+    #[error("Expected token: {0}")]
+    ExpectedToken(String),
     #[error("Internal Error")]
     InternalError,
     #[error("Invalid OPENAI_API_KEY: {0}")]
