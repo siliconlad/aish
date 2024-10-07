@@ -1,3 +1,4 @@
+use crate::errors::SyntaxError;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::env;
@@ -37,10 +38,17 @@ pub struct OpenAIClient {
 }
 
 impl OpenAIClient {
-    pub fn new(api_key: Option<String>) -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn new(api_key: Option<String>) -> Result<Self, SyntaxError> {
         let key = match api_key {
             Some(key) => key,
-            None => env::var("OPENAI_API_KEY")?,
+            None => match env::var("OPENAI_API_KEY") {
+                Ok(key) => key,
+                Err(_) => {
+                    return Err(SyntaxError::InvalidOpenAIKey(
+                        "OPENAI_API_KEY not set".to_string(),
+                    ));
+                }
+            },
         };
 
         Ok(OpenAIClient {
