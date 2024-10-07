@@ -1,5 +1,6 @@
 use crate::errors::SyntaxError;
 use crate::traits::{Runnable, ShellCommand};
+use std::collections::HashMap;
 use std::error::Error;
 use std::fmt;
 use std::fs::File;
@@ -10,7 +11,6 @@ use std::os::unix::io::FromRawFd;
 use std::process::ChildStdout;
 use std::process::Command;
 use std::process::Stdio;
-use std::collections::HashMap;
 
 #[derive(Clone, PartialEq)]
 pub enum RedirectType {
@@ -83,7 +83,11 @@ impl ShellCommand for OutputRedirect {
         self.commands[0].args()
     }
 
-    fn pipe(&self, stdin: Option<ChildStdout>, aliases: &mut HashMap<String, String>) -> Result<Option<ChildStdout>, Box<dyn Error>> {
+    fn pipe(
+        &self,
+        stdin: Option<ChildStdout>,
+        aliases: &mut HashMap<String, String>,
+    ) -> Result<Option<ChildStdout>, Box<dyn Error>> {
         let mut file = self.open_file()?;
         let stdout = self.commands[0].pipe(stdin, aliases)?;
         if let Some(mut stdout) = stdout {
@@ -152,7 +156,11 @@ impl ShellCommand for OutputRedirectAppend {
         self.commands[0].args()
     }
 
-    fn pipe(&self, stdin: Option<ChildStdout>, aliases: &mut HashMap<String, String>) -> Result<Option<ChildStdout>, Box<dyn Error>> {
+    fn pipe(
+        &self,
+        stdin: Option<ChildStdout>,
+        aliases: &mut HashMap<String, String>,
+    ) -> Result<Option<ChildStdout>, Box<dyn Error>> {
         let mut file = self.open_file()?;
         let stdout = self.commands[0].pipe(stdin, aliases)?;
         if let Some(mut stdout) = stdout {
@@ -223,7 +231,11 @@ impl ShellCommand for InputRedirect {
         self.commands[0].args()
     }
 
-    fn pipe(&self, _stdin: Option<ChildStdout>, aliases: &mut HashMap<String, String>) -> Result<Option<ChildStdout>, Box<dyn Error>> {
+    fn pipe(
+        &self,
+        _stdin: Option<ChildStdout>,
+        aliases: &mut HashMap<String, String>,
+    ) -> Result<Option<ChildStdout>, Box<dyn Error>> {
         let file = File::open(&self.input_file)?;
         let file_fd = file.into_raw_fd();
 

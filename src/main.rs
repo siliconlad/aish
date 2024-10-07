@@ -19,13 +19,13 @@ use parsing::parse;
 use rustyline::error::ReadlineError;
 use rustyline::DefaultEditor;
 use simplelog::{Config, LevelFilter, WriteLogger};
+use std::collections::HashMap;
 use std::env;
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 use std::result::Result;
-use std::collections::HashMap;
 
 fn main() -> rustyline::Result<()> {
     // Setup logging
@@ -73,7 +73,9 @@ fn main() -> rustyline::Result<()> {
     Ok(())
 }
 
-fn interactive_mode(aliases: &mut HashMap<String, String>) -> Result<(), Box<dyn std::error::Error>> {
+fn interactive_mode(
+    aliases: &mut HashMap<String, String>,
+) -> Result<(), Box<dyn std::error::Error>> {
     // Setup readline
     let mut rl = DefaultEditor::new()?;
     let history = home_dir().unwrap().join(".aish_history");
@@ -102,7 +104,10 @@ fn interactive_mode(aliases: &mut HashMap<String, String>) -> Result<(), Box<dyn
     Ok(())
 }
 
-fn run_file_mode(file_path: &PathBuf, aliases: &mut HashMap<String, String>) -> Result<(), std::io::Error> {
+fn run_file_mode(
+    file_path: &PathBuf,
+    aliases: &mut HashMap<String, String>,
+) -> Result<(), std::io::Error> {
     let commands = read_file(file_path)?;
     execute_commands(commands, aliases);
     Ok(())
@@ -164,7 +169,7 @@ fn expand_aliases(aliases: &HashMap<String, String>, buffer: &str) -> String {
             let mut expanded_pipe_commands = Vec::new();
 
             for pipe_command in pipe_commands {
-                let mut words: Vec<&str> = pipe_command.trim().split_whitespace().collect();
+                let mut words: Vec<&str> = pipe_command.split_whitespace().collect();
 
                 if !words.is_empty() {
                     if words[0] == "alias" && words.len() > 1 {
@@ -172,7 +177,10 @@ fn expand_aliases(aliases: &HashMap<String, String>, buffer: &str) -> String {
                         let full_command = words[1..].join(" ");
                         if let Some(equals_pos) = full_command.find('=') {
                             let (alias_name, alias_value) = full_command.split_at(equals_pos);
-                            temp_aliases.insert(alias_name.to_string(), alias_value[1..].trim_matches('\'').to_string());
+                            temp_aliases.insert(
+                                alias_name.to_string(),
+                                alias_value[1..].trim_matches('\'').to_string(),
+                            );
                         }
                         expanded_pipe_commands.push(pipe_command.trim().to_string());
                     } else {

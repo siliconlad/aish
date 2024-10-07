@@ -1,4 +1,5 @@
 use crate::traits::{Runnable, ShellCommand};
+use std::collections::HashMap;
 use std::error::Error;
 use std::fmt;
 use std::fs::File;
@@ -7,7 +8,6 @@ use std::ops::Index;
 use std::os::fd::FromRawFd;
 use std::os::fd::IntoRawFd;
 use std::process::ChildStdout;
-use std::collections::HashMap;
 
 #[derive(Clone)]
 pub struct Pipeline {

@@ -1,8 +1,8 @@
 use crate::traits::Runnable;
+use std::collections::HashMap;
 use std::error::Error;
 use std::fmt;
 use std::ops::Index;
-use std::collections::HashMap;
 
 #[derive(Clone)]
 pub struct Sequence {

@@ -311,7 +311,8 @@ fn test_alias_with_arguments() {
 
 #[test]
 fn test_alias_with_special_characters() {
-    let (stdout, stderr, _) = run_shell_command("alias print_star='echo \"*\"' && alias print_star");
+    let (stdout, stderr, _) =
+        run_shell_command("alias print_star='echo \"*\"' && alias print_star");
     assert_eq!(stdout, "print_star='echo \"*\"'");
     assert_eq!(stderr, "");
 }
@@ -332,14 +333,16 @@ fn test_alias_with_environment_variables() {
 
 #[test]
 fn test_alias_with_pipeline() {
-    let (stdout, stderr, _) = run_shell_command("alias count_files='ls | wc -l' && alias count_files");
+    let (stdout, stderr, _) =
+        run_shell_command("alias count_files='ls | wc -l' && alias count_files");
     assert_eq!(stdout, "count_files='ls | wc -l'");
     assert_eq!(stderr, "");
 }
 
 #[test]
 fn test_alias_with_redirection() {
-    let (stdout, stderr, _) = run_shell_command("alias log_date='date > date.log' && alias log_date");
+    let (stdout, stderr, _) =
+        run_shell_command("alias log_date='date > date.log' && alias log_date");
     assert_eq!(stdout, "log_date='date > date.log'");
     assert_eq!(stderr, "");
 }

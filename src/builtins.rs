@@ -1,13 +1,15 @@
 use crate::errors::RuntimeError;
 use crate::openai_client::OpenAIClient;
 
+use std::collections::HashMap;
 use std::error::Error;
 use std::io::Read;
 use std::process::ChildStdout;
-use std::collections::HashMap;
 use tokio::runtime::Runtime;
 
-const BUILTINS: &[&str] = &["cd", "pwd", "exit", "echo", "export", "unset", "llm", "alias"];
+const BUILTINS: &[&str] = &[
+    "cd", "pwd", "exit", "echo", "export", "unset", "llm", "alias",
+];
 
 pub fn is_builtin(cmd: &str) -> bool {
     BUILTINS.contains(&cmd)

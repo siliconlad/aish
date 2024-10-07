@@ -6,15 +6,15 @@ use crate::redirect;
 use crate::token::{join_tokens, Token};
 use crate::traits::{Runnable, ShellCommand};
 
-use serde_json;
 use nix::unistd::{dup2, fork, pipe, ForkResult};
+use serde_json;
+use std::collections::HashMap;
 use std::error::Error;
 use std::fmt;
 use std::fs::File;
 use std::io::{Read, Write};
 use std::os::fd::{AsRawFd, FromRawFd, IntoRawFd};
 use std::process::{ChildStdout, Command, Stdio};
-use std::collections::HashMap;
 use tokio::runtime::Runtime;
 
 pub enum CommandType {
@@ -100,7 +100,11 @@ impl BuiltinCommand {
         Ok(BuiltinCommand { tokens })
     }
 
-    pub fn run_builtin(&self, stdin: Option<ChildStdout>, aliases: &mut HashMap<String, String>) -> Result<(), Box<dyn Error>> {
+    pub fn run_builtin(
+        &self,
+        stdin: Option<ChildStdout>,
+        aliases: &mut HashMap<String, String>,
+    ) -> Result<(), Box<dyn Error>> {
         builtin(self.cmd(), self.args(), stdin, aliases)?;
         Ok(())
     }
@@ -129,7 +133,11 @@ impl ShellCommand for BuiltinCommand {
         self.tokens[1..].iter().map(|s| s.resolve()).collect()
     }
 
-    fn pipe(&self, stdin: Option<ChildStdout>, aliases: &mut HashMap<String, String>) -> Result<Option<ChildStdout>, Box<dyn Error>> {
+    fn pipe(
+        &self,
+        stdin: Option<ChildStdout>,
+        aliases: &mut HashMap<String, String>,
+    ) -> Result<Option<ChildStdout>, Box<dyn Error>> {
         let (pipe_out_r, pipe_out_w) = pipe()?;
         let (pipe_err_r, pipe_err_w) = pipe()?;
         let (alias_r, alias_w) = pipe()?;
@@ -219,7 +227,11 @@ impl ShellCommand for ExternalCommand {
         self.tokens[1..].iter().map(|s| s.resolve()).collect()
     }
 
-    fn pipe(&self, stdin: Option<ChildStdout>, _aliases: &mut HashMap<String, String>) -> Result<Option<ChildStdout>, Box<dyn Error>> {
+    fn pipe(
+        &self,
+        stdin: Option<ChildStdout>,
+        _aliases: &mut HashMap<String, String>,
+    ) -> Result<Option<ChildStdout>, Box<dyn Error>> {
         let input = match stdin {
             Some(input) => Stdio::from(input),
             None => Stdio::inherit(),
@@ -290,7 +302,11 @@ impl ShellCommand for LlmCommand {
         vec![self.prompt.clone()]
     }
 
-    fn pipe(&self, stdin: Option<ChildStdout>, _aliases: &mut HashMap<String, String>) -> Result<Option<ChildStdout>, Box<dyn Error>> {
+    fn pipe(
+        &self,
+        stdin: Option<ChildStdout>,
+        _aliases: &mut HashMap<String, String>,
+    ) -> Result<Option<ChildStdout>, Box<dyn Error>> {
         let mut input = String::new();
         if let Some(mut stdin) = stdin {
             stdin.read_to_string(&mut input)?;
