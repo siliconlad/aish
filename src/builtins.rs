@@ -86,7 +86,7 @@ pub fn export(args: Vec<String>) -> Result<String, Box<dyn Error>> {
 
 pub fn unset(args: Vec<String>) -> Result<String, Box<dyn Error>> {
     for arg in args {
-        unsafe { std::env::remove_var(arg) };
+        std::env::remove_var(arg);
     }
     Ok("".to_string())
 }
