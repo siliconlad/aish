@@ -156,59 +156,61 @@ fn aishrc_path() -> Result<PathBuf, std::io::Error> {
 }
 
 fn expand_aliases(aliases: &HashMap<String, String>, buffer: &str) -> String {
-    let commands: Vec<&str> = buffer.split(';').collect();
-    let mut expanded_commands = Vec::new();
     let mut temp_aliases = aliases.clone();
 
-    for command in commands {
-        let and_commands: Vec<&str> = command.split("&&").collect();
-        let mut expanded_and_commands = Vec::new();
+    buffer.split(';')
+        .map(|command| {
+            command.split("&&")
+                .map(|and_command| {
+                    and_command.split('|')
+                        .map(|pipe_command| expand_single_command(&mut temp_aliases, pipe_command))
+                        .collect::<Vec<_>>()
+                        .join(" | ")
+                })
+                .collect::<Vec<_>>()
+                .join(" && ")
+        })
+        .collect::<Vec<_>>()
+        .join("; ")
+}
 
-        for and_command in and_commands {
-            let pipe_commands: Vec<&str> = and_command.split('|').collect();
-            let mut expanded_pipe_commands = Vec::new();
+fn expand_single_command(temp_aliases: &mut HashMap<String, String>, command: &str) -> String {
+    let mut words: Vec<String> = command.trim().split_whitespace().map(String::from).collect();
 
-            for pipe_command in pipe_commands {
-                let mut words: Vec<&str> = pipe_command.split_whitespace().collect();
-
-                if !words.is_empty() {
-                    if words[0] == "alias" && words.len() > 1 {
-                        // Handle alias definition
-                        let full_command = words[1..].join(" ");
-                        if let Some(equals_pos) = full_command.find('=') {
-                            let (alias_name, alias_value) = full_command.split_at(equals_pos);
-                            temp_aliases.insert(
-                                alias_name.to_string(),
-                                alias_value[1..].trim_matches('\'').to_string(),
-                            );
-                        }
-                        expanded_pipe_commands.push(pipe_command.trim().to_string());
-                    } else {
-                        // Expand aliases
-                        let mut expansion_count = 0;
-                        const MAX_EXPANSIONS: usize = 10;
-
-                        while let Some(expansion) = temp_aliases.get(words[0]) {
-                            let expanded_words: Vec<&str> = expansion.split_whitespace().collect();
-                            if expanded_words.is_empty() {
-                                break;
-                            }
-                            words.splice(0..1, expanded_words);
-                            expansion_count += 1;
-                            if expansion_count >= MAX_EXPANSIONS {
-                                break;
-                            }
-                        }
-                        expanded_pipe_commands.push(words.join(" "));
-                    }
-                }
-            }
-
-            expanded_and_commands.push(expanded_pipe_commands.join(" | "));
-        }
-
-        expanded_commands.push(expanded_and_commands.join(" && "));
+    if words.is_empty() {
+        return String::new();
     }
 
-    expanded_commands.join("; ")
+    if words[0] == "alias" && words.len() > 1 {
+        handle_alias_definition(temp_aliases, &words[1..]);
+        return command.trim().to_string();
+    }
+
+    expand_command_aliases(temp_aliases, &mut words);
+    words.join(" ")
+}
+
+fn handle_alias_definition(temp_aliases: &mut HashMap<String, String>, args: &[String]) {
+    let full_command = args.join(" ");
+    if let Some(equals_pos) = full_command.find('=') {
+        let (alias_name, alias_value) = full_command.split_at(equals_pos);
+        temp_aliases.insert(
+            alias_name.to_string(),
+            alias_value[1..].trim_matches('\'').to_string(),
+        );
+    }
+}
+
+fn expand_command_aliases(temp_aliases: &HashMap<String, String>, words: &mut Vec<String>) {
+    const MAX_EXPANSIONS: usize = 10;
+    let mut expansion_count = 0;
+
+    while let Some(expansion) = temp_aliases.get(&words[0]) {
+        let expanded_words: Vec<String> = expansion.split_whitespace().map(String::from).collect();
+        if expanded_words.is_empty() || expansion_count >= MAX_EXPANSIONS {
+            break;
+        }
+        words.splice(0..1, expanded_words);
+        expansion_count += 1;
+    }
 }
