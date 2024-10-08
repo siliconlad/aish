@@ -1,23 +1,19 @@
 use crate::builtins::builtin;
 use crate::builtins::is_builtin;
 use crate::errors::SyntaxError;
-use crate::openai_client::OpenAIClient;
 use crate::redirect;
-use crate::token::{join_tokens, Token};
+use crate::token::Token;
 use crate::traits::{Runnable, ShellCommand};
 
 use nix::unistd::{dup2, fork, pipe, ForkResult};
 use std::error::Error;
 use std::fmt;
-use std::io::Read;
 use std::os::fd::AsRawFd;
 use std::process::{ChildStdout, Command, Stdio};
-use tokio::runtime::Runtime;
 
 pub enum CommandType {
     Builtin(BuiltinCommand),
     External(ExternalCommand),
-    Llm(LlmCommand),
     InputRedirect(redirect::InputRedirect),
     OutputRedirect(redirect::OutputRedirect),
     OutputRedirectAppend(redirect::OutputRedirectAppend),
@@ -30,12 +26,11 @@ impl CommandType {
         }
 
         match &tokens[..] {
-            [Token::DoubleQuoted(prompt)] => {
+            [Token::DoubleQuoted(_)] => {
                 debug!("Detected LLM command with tokens: {:?}", tokens);
-                Ok(CommandType::Llm(LlmCommand::new(
-                    join_tokens(prompt.to_vec()),
-                    OpenAIClient::new(None)?,
-                )))
+                let mut new_tokens = vec![Token::Plain("llm".to_string())];
+                new_tokens.extend(tokens);
+                Ok(CommandType::Builtin(BuiltinCommand::new(new_tokens)?))
             }
             [Token::Plain(cmd), ..] if is_builtin(cmd) => {
                 debug!("Detected builtin command: {:?}", tokens);
@@ -52,7 +47,6 @@ impl CommandType {
         match self {
             CommandType::Builtin(cmd) => Box::new(cmd),
             CommandType::External(cmd) => Box::new(cmd),
-            CommandType::Llm(cmd) => Box::new(cmd),
             CommandType::InputRedirect(cmd) => Box::new(cmd),
             CommandType::OutputRedirect(cmd) => Box::new(cmd),
             CommandType::OutputRedirectAppend(cmd) => Box::new(cmd),
@@ -63,7 +57,6 @@ impl CommandType {
         match self {
             CommandType::Builtin(cmd) => Box::new(cmd),
             CommandType::External(cmd) => Box::new(cmd),
-            CommandType::Llm(cmd) => Box::new(cmd),
             CommandType::InputRedirect(cmd) => Box::new(cmd),
             CommandType::OutputRedirect(cmd) => Box::new(cmd),
             CommandType::OutputRedirectAppend(cmd) => Box::new(cmd),
@@ -76,7 +69,6 @@ impl fmt::Debug for CommandType {
         match self {
             CommandType::Builtin(cmd) => write!(f, "{:?}", cmd),
             CommandType::External(cmd) => write!(f, "{:?}", cmd),
-            CommandType::Llm(cmd) => write!(f, "{:?}", cmd),
             CommandType::InputRedirect(cmd) => write!(f, "{:?}", cmd),
             CommandType::OutputRedirect(cmd) => write!(f, "{:?}", cmd),
             CommandType::OutputRedirectAppend(cmd) => write!(f, "{:?}", cmd),
@@ -212,75 +204,6 @@ impl ShellCommand for ExternalCommand {
             Ok(child) => child,
             Err(e) => return Err(e.into()),
         };
-
-        Ok(child.stdout.take())
-    }
-}
-
-#[derive(Clone)]
-pub struct LlmCommand {
-    prompt: String,
-    openai_client: OpenAIClient,
-}
-
-impl LlmCommand {
-    pub fn new(prompt: String, openai_client: OpenAIClient) -> Self {
-        LlmCommand {
-            prompt,
-            openai_client,
-        }
-    }
-
-    pub async fn generate_response(&self, input: Option<String>) -> Result<String, Box<dyn Error>> {
-        debug!("Received input: {:?}", input);
-        let context = if let Some(input) = input {
-            format!("{}: {}", self.prompt, input)
-        } else {
-            self.prompt.clone()
-        };
-        let output = self.openai_client.generate_text(&context, 100).await?; // TODO: make this configurable
-        debug!("Generated response: {}", output);
-        Ok(output)
-    }
-}
-
-impl fmt::Debug for LlmCommand {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "LlmCommand({:?})", self.prompt)
-    }
-}
-
-impl Runnable for LlmCommand {
-    fn run(&self) -> Result<String, Box<dyn Error>> {
-        debug!("Running llm: {:?}", self);
-        let runtime = Runtime::new().unwrap();
-        let output = runtime.block_on(self.generate_response(None))?;
-        Ok(output)
-    }
-}
-
-impl ShellCommand for LlmCommand {
-    fn cmd(&self) -> String {
-        "llm".to_string()
-    }
-
-    fn args(&self) -> Vec<String> {
-        vec![self.prompt.clone()]
-    }
-
-    fn pipe(&self, stdin: Option<ChildStdout>) -> Result<Option<ChildStdout>, Box<dyn Error>> {
-        let mut input = String::new();
-        if let Some(mut stdin) = stdin {
-            stdin.read_to_string(&mut input)?;
-        }
-
-        let runtime = Runtime::new()?;
-        let response = runtime.block_on(self.generate_response(Some(input)))?;
-
-        let mut child = Command::new("echo")
-            .arg(response)
-            .stdout(Stdio::piped())
-            .spawn()?;
 
         Ok(child.stdout.take())
     }
