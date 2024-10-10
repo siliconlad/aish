@@ -44,13 +44,18 @@ impl Default for Sequence {
 
 impl Runnable for Sequence {
     fn run(&self) -> Result<String, Box<dyn Error>> {
+        let mut outputs = Vec::new();
         for command in &self.commands {
             match command.run() {
-                Ok(_) => continue,
-                Err(e) => eprintln!("{}", e),
+                Ok(output) => {
+                    if !output.is_empty() {
+                        outputs.push(output);
+                    }
+                },
+                Err(e) => return Err(e),
             }
         }
-        Ok("".to_string())
+        Ok(outputs.join("\n"))
     }
 }
 

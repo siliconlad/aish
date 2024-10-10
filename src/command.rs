@@ -10,6 +10,8 @@ use std::error::Error;
 use std::fmt;
 use std::os::fd::AsRawFd;
 use std::process::{ChildStdout, Command, Stdio};
+use tokio::runtime::Runtime;
+use std::io::Write;
 
 pub enum CommandType {
     Builtin(BuiltinCommand),
@@ -89,9 +91,9 @@ impl BuiltinCommand {
         Ok(BuiltinCommand { tokens })
     }
 
-    pub fn run_builtin(&self, stdin: Option<ChildStdout>) -> Result<(), Box<dyn Error>> {
-        builtin(self.cmd(), self.args(), stdin)?;
-        Ok(())
+    pub fn run_builtin(&self, stdin: Option<ChildStdout>) -> Result<String, Box<dyn Error>> {
+        let output = builtin(self.cmd(), self.args(), stdin)?;
+        Ok(output)
     }
 }
 
@@ -104,8 +106,8 @@ impl fmt::Debug for BuiltinCommand {
 impl Runnable for BuiltinCommand {
     fn run(&self) -> Result<String, Box<dyn Error>> {
         debug!("Running builtin: {:?}", self);
-        self.run_builtin(None)?;
-        Ok("".to_string())
+        let output = self.run_builtin(None)?;
+        Ok(output)
     }
 }
 
@@ -121,7 +123,7 @@ impl ShellCommand for BuiltinCommand {
     fn pipe(&self, stdin: Option<ChildStdout>) -> Result<Option<ChildStdout>, Box<dyn Error>> {
         let (pipe_out_r, pipe_out_w) = pipe()?;
         let (pipe_err_r, pipe_err_w) = pipe()?;
-
+    
         match unsafe { fork() }? {
             ForkResult::Parent { child: _ } => {
                 drop(pipe_out_w);
@@ -133,7 +135,9 @@ impl ShellCommand for BuiltinCommand {
                 drop(pipe_err_r);
                 dup2(pipe_out_w.as_raw_fd(), 1)?;
                 dup2(pipe_err_w.as_raw_fd(), 2)?;
-                self.run_builtin(stdin)?;
+                let output = self.run_builtin(stdin)?;
+                std::io::stdout().write_all(output.as_bytes())?;
+                std::io::stdout().flush()?;
                 std::process::exit(0);
             }
         }

@@ -62,6 +62,7 @@ impl OpenAIClient {
         prompt: &str,
         max_tokens: u16,
     ) -> Result<String, Box<dyn std::error::Error>> {
+        debug!("Generating text with prompt: {}", prompt);
         let request = OpenAIRequest {
             model: "gpt-4o-mini".to_string(), // TODO: make this configurable
             messages: vec![Message {
