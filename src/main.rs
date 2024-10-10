@@ -75,8 +75,15 @@ fn interactive_mode() -> Result<(), Box<dyn std::error::Error>> {
     let mut rl = DefaultEditor::new()?;
     let history = home_dir().unwrap().join(".aish_history");
     let _ = rl.load_history(history.as_path());
+    let mut previous_output = String::new();
+
     loop {
-        let readline = rl.readline("> ");
+        let readline = if previous_output.is_empty() {
+            rl.readline("> ")
+        } else {
+            rl.readline_with_initial("> ", (&previous_output, ""))
+        };
+
         let buffer = match readline {
             Ok(line) => {
                 let _ = rl.add_history_entry(line.as_str());
@@ -91,7 +98,20 @@ fn interactive_mode() -> Result<(), Box<dyn std::error::Error>> {
             }
         };
 
-        execute_commands(vec![buffer]);
+        match execute_commands(vec![buffer]) {
+            Ok(output) => {
+                if output.starts_with("COMMAND: ") {
+                    previous_output = output[9..].to_string();
+                } else {
+                    println!("output: {}", output);
+                    previous_output.clear();
+                }
+            }
+            Err(e) => {
+                eprintln!("Error: {}", e);
+                previous_output.clear();
+            }
+        }
     }
     let _ = rl.save_history(history.as_path());
     Ok(())
@@ -99,11 +119,11 @@ fn interactive_mode() -> Result<(), Box<dyn std::error::Error>> {
 
 fn run_file_mode(file_path: &PathBuf) -> Result<(), std::io::Error> {
     let commands = read_file(file_path)?;
-    execute_commands(commands);
+    let _ = execute_commands(commands)?;
     Ok(())
 }
 
-fn execute_commands(commands: Vec<String>) {
+fn execute_commands(commands: Vec<String>) -> Result<String, std::io::Error> {
     for command in commands {
         debug!("Executing command: {}", command);
         let tokenized = match parse(command) {
@@ -113,15 +133,17 @@ fn execute_commands(commands: Vec<String>) {
                 continue;
             }
         };
+        debug!("tokenized: {:?}", tokenized);
         match tokenized.run() {
             Ok(s) => {
                 if !s.is_empty() {
-                    println!("{}", s)
+                    return Ok(s)
                 }
             }
             Err(e) => eprintln!("Error in command: {}", e),
         }
     }
+    Ok("".to_string())
 }
 
 fn read_file(file_path: &PathBuf) -> Result<Vec<String>, std::io::Error> {

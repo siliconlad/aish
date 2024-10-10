@@ -76,17 +76,18 @@ impl Runnable for Pipeline {
                         Ok(s) => {
                             let trimmed = s.trim_end_matches('\n').to_string();
                             if !trimmed.is_empty() {
-                                println!("{}", trimmed);
+                                return Ok(trimmed);
                             }
+                            return Ok("".to_string());
                         }
                         Err(_) => {
                             if !buff.is_empty() {
                                 std::io::stdout().write_all(&buff)?;
+                                return Ok(String::from_utf8_lossy(&buff).to_string());
                             }
                         }
                     }
                 }
-                return Ok("".to_string());
             } else {
                 prev_stdout = cmd_stdout;
             }

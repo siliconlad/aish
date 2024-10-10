@@ -207,7 +207,7 @@ impl Runnable for InputRedirect {
         if let Some(mut stdout) = stdout {
             let mut output = String::new();
             stdout.read_to_string(&mut output)?;
-            println!("{}", output.trim_end());
+            println!("run_input_redirect: {}", output.trim_end());
         }
         Ok("".to_string())
     }

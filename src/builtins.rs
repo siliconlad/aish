@@ -104,19 +104,29 @@ pub fn llm(args: Vec<String>, stdin: Option<ChildStdout>) -> Result<String, Box<
     }
 
     // TODO: do something more sophisticated
+    debug!("------------------------------------------------------------------");
     debug!("Received input: {:?}", input);
+    debug!("BEFORE PROMPT");
+    debug!("Prompt: {}", prompt);
+    debug!("AFTER PROMPT");
+
     let context = if !input.is_empty() {
-        format!("{}: {}", prompt, input)
+        format!(
+            "Given the following input and prompt, decide whether to return a normal response to the input or a suggested new shell command. \
+            Example one: input = result of a git diff, prompt = 'Write a commit message in one line', output = 'COMMAND: git commit -m \"<LLM generated response>\"'.\
+            Example two: input = '', prompt = 'hello', output = 'Hello, how are you?'\
+            \nInput: {}\nPrompt: {}",
+            input, prompt
+        )
     } else {
         prompt.to_string()
     };
+
     debug!("Context: {}", context);
 
     // TODO: make configurable
     let runtime = Runtime::new().unwrap();
     let output = runtime.block_on(openai_client.generate_text(&context, 100))?;
     debug!("Generated response: {}", output);
-    println!("{}", output);
-
-    Ok("".to_string())
+    Ok(output)
 }
