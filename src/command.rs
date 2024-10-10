@@ -10,7 +10,6 @@ use std::error::Error;
 use std::fmt;
 use std::os::fd::AsRawFd;
 use std::process::{ChildStdout, Command, Stdio};
-use tokio::runtime::Runtime;
 use std::io::Write;
 
 pub enum CommandType {
@@ -93,6 +92,7 @@ impl BuiltinCommand {
 
     pub fn run_builtin(&self, stdin: Option<ChildStdout>) -> Result<String, Box<dyn Error>> {
         let output = builtin(self.cmd(), self.args(), stdin)?;
+        debug!("Output: {}", output);
         Ok(output)
     }
 }
@@ -107,6 +107,7 @@ impl Runnable for BuiltinCommand {
     fn run(&self) -> Result<String, Box<dyn Error>> {
         debug!("Running builtin: {:?}", self);
         let output = self.run_builtin(None)?;
+        debug!("Builtin output: {}", output);
         Ok(output)
     }
 }

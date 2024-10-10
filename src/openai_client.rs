@@ -1,4 +1,4 @@
-use crate::errors::SyntaxError;
+use crate::errors::{SyntaxError, OpenAIError};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::env;
@@ -61,7 +61,7 @@ impl OpenAIClient {
         &self,
         prompt: &str,
         max_tokens: u16,
-    ) -> Result<String, Box<dyn std::error::Error>> {
+    ) -> Result<String, OpenAIError> {
         debug!("Generating text with prompt: {}", prompt);
         let request = OpenAIRequest {
             model: "gpt-4o-mini".to_string(), // TODO: make this configurable
@@ -71,25 +71,54 @@ impl OpenAIClient {
             }],
             max_tokens,
         };
-
-        let response = self
+    
+        debug!("Request created!");
+        let response = match self
             .client
             .post("https://api.openai.com/v1/chat/completions")
             .header("Authorization", format!("Bearer {}", self.api_key))
             .json(&request)
             .send()
-            .await?;
-
-        if response.status().is_success() {
-            let openai_response: OpenAIResponse = response.json().await?;
-            Ok(openai_response
+            .await
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                error!("Error during API call: {:?}", e);
+                return Err(OpenAIError::NetworkError(e.to_string()));
+            }
+        };
+        
+        debug!("Response received: {:?}", response);
+        
+        let status = response.status();
+        debug!("Response status: {}", status);
+    
+        if status.is_success() {
+            let openai_response = match response.json::<OpenAIResponse>().await {
+                Ok(resp) => resp,
+                Err(e) => {
+                    error!("Error deserializing response: {:?}", e);
+                    return Err(OpenAIError::DeserializationError(e.to_string()));
+                }
+            };
+            let content = openai_response
                 .choices
                 .into_iter()
                 .map(|c| c.message.content)
-                .collect())
+                .collect::<Vec<String>>()
+                .join(" ");
+            debug!("Generated content: {}", content);
+            Ok(content)
         } else {
-            let error_text = response.text().await?;
-            Err(Box::from(error_text))
+            let error_text = match response.text().await {
+                Ok(text) => text,
+                Err(e) => {
+                    error!("Error reading error response: {:?}", e);
+                    return Err(OpenAIError::DeserializationError(e.to_string()));
+                }
+            };
+            error!("API error: {}", error_text);
+            Err(OpenAIError::APIError(error_text))
         }
     }
 }

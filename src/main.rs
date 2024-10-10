@@ -98,8 +98,10 @@ fn interactive_mode() -> Result<(), Box<dyn std::error::Error>> {
             }
         };
 
+        debug!("4321 Going to execute commands");
         match execute_commands(vec![buffer]) {
             Ok(output) => {
+                debug!("Received output: {}", output);
                 if output.starts_with("COMMAND: ") {
                     previous_output = output[9..].to_string();
                 } else {
@@ -119,11 +121,13 @@ fn interactive_mode() -> Result<(), Box<dyn std::error::Error>> {
 
 fn run_file_mode(file_path: &PathBuf) -> Result<(), std::io::Error> {
     let commands = read_file(file_path)?;
+    debug!("1234 Going to execute commands");
     let _ = execute_commands(commands)?;
     Ok(())
 }
 
 fn execute_commands(commands: Vec<String>) -> Result<String, std::io::Error> {
+    debug!("Number of commands: {}", commands.len());
     for command in commands {
         debug!("Executing command: {}", command);
         let tokenized = match parse(command) {

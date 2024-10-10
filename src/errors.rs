@@ -19,3 +19,13 @@ pub enum RuntimeError {
     #[error("Command failed: {0}")]
     CommandFailed(String),
 }
+
+#[derive(Error, Debug)]
+pub enum OpenAIError {
+    #[error("Network error: {0}")]
+    NetworkError(String),
+    #[error("API error: {0}")]
+    APIError(String),
+    #[error("Deserialization error: {0}")]
+    DeserializationError(String),
+}
