@@ -10,7 +10,6 @@ use std::error::Error;
 use std::fmt;
 use std::os::fd::AsRawFd;
 use std::process::{ChildStdout, Command, Stdio};
-use std::io::Write;
 
 pub enum CommandType {
     Builtin(BuiltinCommand),
@@ -124,7 +123,7 @@ impl ShellCommand for BuiltinCommand {
     fn pipe(&self, stdin: Option<ChildStdout>) -> Result<Option<ChildStdout>, Box<dyn Error>> {
         let (pipe_out_r, pipe_out_w) = pipe()?;
         let (pipe_err_r, pipe_err_w) = pipe()?;
-    
+
         match unsafe { fork() }? {
             ForkResult::Parent { child: _ } => {
                 drop(pipe_out_w);
@@ -136,9 +135,7 @@ impl ShellCommand for BuiltinCommand {
                 drop(pipe_err_r);
                 dup2(pipe_out_w.as_raw_fd(), 1)?;
                 dup2(pipe_err_w.as_raw_fd(), 2)?;
-                let output = self.run_builtin(stdin)?;
-                std::io::stdout().write_all(output.as_bytes())?;
-                std::io::stdout().flush()?;
+                println!("{}", self.run_builtin(stdin)?);
                 std::process::exit(0);
             }
         }

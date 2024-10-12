@@ -39,10 +39,12 @@ fn main() -> rustyline::Result<()> {
     // Get args
     let args: Vec<String> = env::args().collect();
 
+    let mut previous_output = String::new();
+
     // Run aishrc file if it exists
     let aishrc = aishrc_path()?;
     if aishrc.exists() {
-        match run_file_mode(&aishrc) {
+        match run_file_mode(&aishrc, &mut previous_output) {
             Ok(_) => (),
             Err(e) => {
                 eprintln!("Error: {}", e);
@@ -55,11 +57,11 @@ fn main() -> rustyline::Result<()> {
 
     // Run in interactive mode if no args
     match args.len() {
-        1 => match interactive_mode() {
+        1 => match interactive_mode(&mut previous_output) {
             Ok(_) => (),
             Err(e) => eprintln!("Error: {}", e),
         },
-        2 => match run_file_mode(&PathBuf::from(&args[1])) {
+        2 => match run_file_mode(&PathBuf::from(&args[1]), &mut previous_output) {
             Ok(_) => (),
             Err(e) => eprintln!("Error: {}", e),
         },
@@ -70,12 +72,11 @@ fn main() -> rustyline::Result<()> {
     Ok(())
 }
 
-fn interactive_mode() -> Result<(), Box<dyn std::error::Error>> {
+fn interactive_mode(previous_output: &mut String) -> Result<(), Box<dyn std::error::Error>> {
     // Setup readline
     let mut rl = DefaultEditor::new()?;
     let history = home_dir().unwrap().join(".aish_history");
     let _ = rl.load_history(history.as_path());
-    let mut previous_output = String::new();
 
     loop {
         let readline = if previous_output.is_empty() {
@@ -99,34 +100,20 @@ fn interactive_mode() -> Result<(), Box<dyn std::error::Error>> {
         };
 
         debug!("4321 Going to execute commands");
-        match execute_commands(vec![buffer]) {
-            Ok(output) => {
-                debug!("Received output: {}", output);
-                if output.starts_with("COMMAND: ") {
-                    previous_output = output[9..].to_string();
-                } else {
-                    println!("output: {}", output);
-                    previous_output.clear();
-                }
-            }
-            Err(e) => {
-                eprintln!("Error: {}", e);
-                previous_output.clear();
-            }
-        }
+        execute_commands(vec![buffer], previous_output);
     }
     let _ = rl.save_history(history.as_path());
     Ok(())
 }
 
-fn run_file_mode(file_path: &PathBuf) -> Result<(), std::io::Error> {
+fn run_file_mode(file_path: &PathBuf, previous_output: &mut String) -> Result<(), std::io::Error> {
     let commands = read_file(file_path)?;
     debug!("1234 Going to execute commands");
-    let _ = execute_commands(commands)?;
+    execute_commands(commands, previous_output);
     Ok(())
 }
 
-fn execute_commands(commands: Vec<String>) -> Result<String, std::io::Error> {
+fn execute_commands(commands: Vec<String>, previous_output: &mut String) {
     debug!("Number of commands: {}", commands.len());
     for command in commands {
         debug!("Executing command: {}", command);
@@ -140,14 +127,18 @@ fn execute_commands(commands: Vec<String>) -> Result<String, std::io::Error> {
         debug!("tokenized: {:?}", tokenized);
         match tokenized.run() {
             Ok(s) => {
-                if !s.is_empty() {
-                    return Ok(s)
+                if s.starts_with("COMMAND: ") {
+                    *previous_output = s[9..].to_string();
+                } else if !s.is_empty() {
+                    println!("output: {}", s);
+                    previous_output.clear();
+                } else {
+                    previous_output.clear();
                 }
             }
             Err(e) => eprintln!("Error in command: {}", e),
         }
     }
-    Ok("".to_string())
 }
 
 fn read_file(file_path: &PathBuf) -> Result<Vec<String>, std::io::Error> {
