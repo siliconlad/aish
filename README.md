@@ -7,6 +7,8 @@ A shell built with AI at the core.
 
 
 Checkout the blog post on how we built it [here](https://siliconlad.com/blog/aish).
+
+> [!Warning]
 > This shell is still in the early stages of development and is **not ready** for production use.
 
 ## Features
