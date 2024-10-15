@@ -51,11 +51,11 @@ impl Runnable for Sequence {
                     if !output.is_empty() {
                         prev_output = Some(output);
                     }
-                },
+                }
                 Err(e) => return Err(e),
             }
         }
-        Ok(prev_output.unwrap_or_else(|| "".to_string()))
+        Ok(prev_output.unwrap_or_default())
     }
 }
 

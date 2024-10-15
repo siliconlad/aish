@@ -1,4 +1,4 @@
-use crate::errors::{SyntaxError, OpenAIError};
+use crate::errors::{OpenAIError, SyntaxError};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::env;
@@ -62,7 +62,6 @@ impl OpenAIClient {
         prompt: &str,
         max_tokens: u16,
     ) -> Result<String, OpenAIError> {
-        debug!("Generating text with prompt: {}", prompt);
         let request = OpenAIRequest {
             model: "gpt-4o-mini".to_string(), // TODO: make this configurable
             messages: vec![Message {
@@ -71,8 +70,7 @@ impl OpenAIClient {
             }],
             max_tokens,
         };
-    
-        debug!("Request created!");
+
         let response = match self
             .client
             .post("https://api.openai.com/v1/chat/completions")
@@ -87,12 +85,9 @@ impl OpenAIClient {
                 return Err(OpenAIError::NetworkError(e.to_string()));
             }
         };
-        
-        debug!("Response received: {:?}", response);
-        
+
         let status = response.status();
         debug!("Response status: {}", status);
-    
         if status.is_success() {
             let openai_response = match response.json::<OpenAIResponse>().await {
                 Ok(resp) => resp,
@@ -105,9 +100,7 @@ impl OpenAIClient {
                 .choices
                 .into_iter()
                 .map(|c| c.message.content)
-                .collect::<Vec<String>>()
-                .join(" ");
-            debug!("Generated content: {}", content);
+                .collect();
             Ok(content)
         } else {
             let error_text = match response.text().await {

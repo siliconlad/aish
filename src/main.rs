@@ -82,7 +82,7 @@ fn interactive_mode(previous_output: &mut String) -> Result<(), Box<dyn std::err
         let readline = if previous_output.is_empty() {
             rl.readline("> ")
         } else {
-            rl.readline_with_initial("> ", (&previous_output, ""))
+            rl.readline_with_initial("> ", (previous_output, ""))
         };
 
         let buffer = match readline {
@@ -99,7 +99,6 @@ fn interactive_mode(previous_output: &mut String) -> Result<(), Box<dyn std::err
             }
         };
 
-        debug!("4321 Going to execute commands");
         execute_commands(vec![buffer], previous_output);
     }
     let _ = rl.save_history(history.as_path());
@@ -108,13 +107,11 @@ fn interactive_mode(previous_output: &mut String) -> Result<(), Box<dyn std::err
 
 fn run_file_mode(file_path: &PathBuf, previous_output: &mut String) -> Result<(), std::io::Error> {
     let commands = read_file(file_path)?;
-    debug!("1234 Going to execute commands");
     execute_commands(commands, previous_output);
     Ok(())
 }
 
 fn execute_commands(commands: Vec<String>, previous_output: &mut String) {
-    debug!("Number of commands: {}", commands.len());
     for command in commands {
         debug!("Executing command: {}", command);
         let tokenized = match parse(command) {
@@ -127,10 +124,10 @@ fn execute_commands(commands: Vec<String>, previous_output: &mut String) {
         debug!("tokenized: {:?}", tokenized);
         match tokenized.run() {
             Ok(s) => {
-                if s.starts_with("COMMAND: ") {
-                    *previous_output = s[9..].to_string();
+                if let Some(stripped) = s.strip_prefix("COMMAND: ") {
+                    *previous_output = stripped.to_string();
                 } else if !s.is_empty() {
-                    println!("output: {}", s);
+                    println!("{}", s);
                     previous_output.clear();
                 } else {
                     previous_output.clear();

@@ -1,10 +1,6 @@
 use crate::errors::RuntimeError;
-use crate::openai_client::OpenAIClient;
 
 use std::error::Error;
-use std::io::Read;
-use std::process::ChildStdout;
-use tokio::runtime::Runtime;
 
 const BUILTINS: &[&str] = &["cd", "pwd", "exit", "echo", "export", "unset", "llm"];
 
@@ -12,11 +8,7 @@ pub fn is_builtin(cmd: &str) -> bool {
     BUILTINS.contains(&cmd)
 }
 
-pub fn builtin(
-    cmd: String,
-    args: Vec<String>,
-    stdin: Option<ChildStdout>,
-) -> Result<String, Box<dyn Error>> {
+pub fn builtin(cmd: String, args: Vec<String>) -> Result<String, Box<dyn Error>> {
     match cmd.as_str() {
         "cd" => cd(args),
         "pwd" => pwd(),
@@ -24,7 +16,6 @@ pub fn builtin(
         "echo" => echo(args),
         "export" => export(args),
         "unset" => unset(args),
-        "llm" => llm(args, stdin),
         _ => Err(format!("{}: command not found", cmd).into()),
     }
 }
@@ -89,48 +80,4 @@ pub fn unset(args: Vec<String>) -> Result<String, Box<dyn Error>> {
         std::env::remove_var(arg);
     }
     Ok("".to_string())
-}
-
-pub fn llm(args: Vec<String>, stdin: Option<ChildStdout>) -> Result<String, Box<dyn Error>> {
-    let openai_client = OpenAIClient::new(None)?;
-    let prompt = if args.is_empty() {
-        "".to_string()
-    } else {
-        args.first().unwrap().clone()
-    };
-    let mut input = String::new();
-    if let Some(mut stdin) = stdin {
-        stdin.read_to_string(&mut input)?;
-    }
-
-    // TODO: do something more sophisticated
-    debug!("Received input: {:?}", input);
-    debug!("Prompt: {}", prompt);
-
-    let context = if !input.is_empty() {
-        format!(
-            "Given the following input and prompt, decide whether to return a normal response to the input or a suggested new shell command. \
-            Example one: input = result of a git diff, prompt = 'Write a commit message in one line', output = 'COMMAND: git commit -m \"<LLM generated response>\"'.\
-            Example two: input = '', prompt = 'hello', output = 'Hello, how are you?' \
-            Input: {} Prompt: {}",
-            input, prompt
-        )
-    } else {
-        prompt.to_string()
-    };
-
-    debug!("Context: {}", context);
-
-    // TODO: make configurable
-    let runtime = Runtime::new().unwrap();
-    debug!("About to call generate_text");
-    let output = match runtime.block_on(openai_client.generate_text(&context, 100)) {
-        Ok(text) => text,
-        Err(e) => {
-            debug!("Error from generate_text: {:?}", e);
-            return Err(Box::new(e));
-        }
-    };
-    debug!("Generated response: {}", output);
-    Ok(output)
 }
