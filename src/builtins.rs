@@ -2,7 +2,7 @@ use crate::errors::RuntimeError;
 
 use std::error::Error;
 
-const BUILTINS: &[&str] = &["cd", "pwd", "exit", "echo", "export", "unset", "llm"];
+const BUILTINS: &[&str] = &["cd", "pwd", "exit", "echo", "export", "unset"];
 
 pub fn is_builtin(cmd: &str) -> bool {
     BUILTINS.contains(&cmd)
