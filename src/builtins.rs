@@ -1,14 +1,14 @@
 use crate::errors::RuntimeError;
 
 use std::error::Error;
-
-const BUILTINS: &[&str] = &["cd", "pwd", "exit", "echo", "export", "unset"];
+use std::collections::HashMap;
+const BUILTINS: &[&str] = &["cd", "pwd", "exit", "echo", "export", "unset", "alias"];
 
 pub fn is_builtin(cmd: &str) -> bool {
     BUILTINS.contains(&cmd)
 }
 
-pub fn builtin(cmd: String, args: Vec<String>) -> Result<String, Box<dyn Error>> {
+pub fn builtin(cmd: String, args: Vec<String>, aliases: &mut HashMap<String, String>) -> Result<String, Box<dyn Error>> {
     match cmd.as_str() {
         "cd" => cd(args),
         "pwd" => pwd(),
@@ -16,6 +16,7 @@ pub fn builtin(cmd: String, args: Vec<String>) -> Result<String, Box<dyn Error>>
         "echo" => echo(args),
         "export" => export(args),
         "unset" => unset(args),
+        "alias" => alias(args, aliases),
         _ => Err(format!("{}: command not found", cmd).into()),
     }
 }
@@ -80,4 +81,35 @@ pub fn unset(args: Vec<String>) -> Result<String, Box<dyn Error>> {
         std::env::remove_var(arg);
     }
     Ok("".to_string())
+}
+
+pub fn alias(
+    args: Vec<String>,
+    aliases: &mut HashMap<String, String>,
+) -> Result<String, Box<dyn Error>> {
+    if args.is_empty() {
+        // Print all aliases
+        for (alias, command) in aliases {
+            println!("{}='{}'", alias, command);
+        }
+        Ok("".to_string())
+    } else if args.len() == 1 {
+        let parts: Vec<&str> = args[0].splitn(2, '=').collect();
+        if parts.len() == 2 {
+            let alias = parts[0];
+            let command = parts[1];
+            aliases.insert(alias.to_string(), command.to_string());
+            Ok("".to_string())
+        } else {
+            match aliases.get(&args[0]) {
+                Some(command) => {
+                    println!("{}='{}'", args[0], command);
+                    Ok("".to_string())
+                }
+                None => Err(format!("Alias '{}' not found", args[0]).into()),
+            }
+        }
+    } else {
+        Err("Usage: alias [name[=value]]".into())
+    }
 }

@@ -7,7 +7,7 @@ use std::ops::Index;
 use std::os::fd::FromRawFd;
 use std::os::fd::IntoRawFd;
 use std::process::ChildStdout;
-
+use std::collections::HashMap;
 #[derive(Clone)]
 pub struct Pipeline {
     commands: Vec<Box<dyn ShellCommand>>,
@@ -61,10 +61,10 @@ impl fmt::Debug for Pipeline {
 }
 
 impl Runnable for Pipeline {
-    fn run(&self) -> Result<String, Box<dyn Error>> {
+    fn run(&self, aliases: &mut HashMap<String, String>) -> Result<String, Box<dyn Error>> {
         let mut prev_stdout: Option<ChildStdout> = None;
         for (i, command) in self.commands.iter().enumerate() {
-            let cmd_stdout = command.pipe(prev_stdout.take())?;
+            let cmd_stdout = command.pipe(prev_stdout.take(), aliases)?;
             if i == self.commands.len() - 1 {
                 if let Some(stdout) = cmd_stdout {
                     let mut buff = Vec::new();

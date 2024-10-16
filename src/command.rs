@@ -13,6 +13,7 @@ use std::io::Read;
 use std::os::fd::AsRawFd;
 use std::process::{ChildStdout, Command, Stdio};
 use tokio::runtime::Runtime;
+use std::collections::HashMap;
 
 pub enum CommandType {
     Builtin(BuiltinCommand),
@@ -97,8 +98,8 @@ impl BuiltinCommand {
         Ok(BuiltinCommand { tokens })
     }
 
-    pub fn run_builtin(&self) -> Result<String, Box<dyn Error>> {
-        let output = builtin(self.cmd(), self.args())?;
+    pub fn run_builtin(&self, aliases: &mut HashMap<String, String>) -> Result<String, Box<dyn Error>> {
+        let output = builtin(self.cmd(), self.args(), aliases)?;
         Ok(output)
     }
 }
@@ -110,9 +111,9 @@ impl fmt::Debug for BuiltinCommand {
 }
 
 impl Runnable for BuiltinCommand {
-    fn run(&self) -> Result<String, Box<dyn Error>> {
+    fn run(&self, aliases: &mut HashMap<String, String>) -> Result<String, Box<dyn Error>> {
         debug!("Running builtin: {:?}", self);
-        let output = self.run_builtin()?;
+        let output = self.run_builtin(aliases)?;
         Ok(output)
     }
 }
@@ -126,7 +127,7 @@ impl ShellCommand for BuiltinCommand {
         self.tokens[1..].iter().map(|s| s.resolve()).collect()
     }
 
-    fn pipe(&self, _stdin: Option<ChildStdout>) -> Result<Option<ChildStdout>, Box<dyn Error>> {
+    fn pipe(&self, _stdin: Option<ChildStdout>, aliases: &mut HashMap<String, String>) -> Result<Option<ChildStdout>, Box<dyn Error>> {
         let (pipe_out_r, pipe_out_w) = pipe()?;
         let (pipe_err_r, pipe_err_w) = pipe()?;
 
@@ -141,7 +142,7 @@ impl ShellCommand for BuiltinCommand {
                 drop(pipe_err_r);
                 dup2(pipe_out_w.as_raw_fd(), 1)?;
                 dup2(pipe_err_w.as_raw_fd(), 2)?;
-                self.run_builtin()?;
+                self.run_builtin(aliases)?;
                 std::process::exit(0);
             }
         }
@@ -169,7 +170,7 @@ impl fmt::Debug for ExternalCommand {
 }
 
 impl Runnable for ExternalCommand {
-    fn run(&self) -> Result<String, Box<dyn Error>> {
+    fn run(&self, _aliases: &mut HashMap<String, String>) -> Result<String, Box<dyn Error>> {
         debug!("Running external: {:?}", self);
         let mut child = match Command::new(self.cmd()).args(self.args()).spawn() {
             Ok(child) => child,
@@ -197,7 +198,7 @@ impl ShellCommand for ExternalCommand {
         self.tokens[1..].iter().map(|s| s.resolve()).collect()
     }
 
-    fn pipe(&self, stdin: Option<ChildStdout>) -> Result<Option<ChildStdout>, Box<dyn Error>> {
+    fn pipe(&self, stdin: Option<ChildStdout>, _aliases: &mut HashMap<String, String>) -> Result<Option<ChildStdout>, Box<dyn Error>> {
         let input = match stdin {
             Some(input) => Stdio::from(input),
             None => Stdio::inherit(),
@@ -265,7 +266,7 @@ impl fmt::Debug for LlmCommand {
 }
 
 impl Runnable for LlmCommand {
-    fn run(&self) -> Result<String, Box<dyn Error>> {
+    fn run(&self, _aliases: &mut HashMap<String, String>) -> Result<String, Box<dyn Error>> {
         debug!("Running llm: {:?}", self);
         let runtime = Runtime::new().unwrap();
         let output = runtime.block_on(self.generate_response(None))?;
@@ -282,7 +283,7 @@ impl ShellCommand for LlmCommand {
         vec![self.prompt.clone()]
     }
 
-    fn pipe(&self, stdin: Option<ChildStdout>) -> Result<Option<ChildStdout>, Box<dyn Error>> {
+    fn pipe(&self, stdin: Option<ChildStdout>, _aliases: &mut HashMap<String, String>) -> Result<Option<ChildStdout>, Box<dyn Error>> {
         let mut input = String::new();
         if let Some(mut stdin) = stdin {
             stdin.read_to_string(&mut input)?;

@@ -27,7 +27,7 @@ use std::fs::OpenOptions;
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 use std::result::Result;
-
+use std::collections::HashMap;
 fn main() -> rustyline::Result<()> {
     // Setup logging
     let log_path = home_dir().unwrap().join(".aish_log");
@@ -42,11 +42,12 @@ fn main() -> rustyline::Result<()> {
     let args: Vec<String> = env::args().collect();
 
     let mut llm_output = String::new();
+    let mut aliases = HashMap::new();
 
     // Run aishrc file if it exists
     let aishrc = aishrc_path()?;
     if aishrc.exists() {
-        match run_file_mode(&aishrc, &mut llm_output) {
+        match run_file_mode(&aishrc, &mut llm_output, &mut aliases) {
             Ok(_) => (),
             Err(e) => {
                 eprintln!("Error: {}", e);
@@ -59,11 +60,11 @@ fn main() -> rustyline::Result<()> {
 
     // Run in interactive mode if no args
     match args.len() {
-        1 => match interactive_mode(&mut llm_output) {
+        1 => match interactive_mode(&mut llm_output, &mut aliases) {
             Ok(_) => (),
             Err(e) => eprintln!("Error: {}", e),
         },
-        2 => match run_file_mode(&PathBuf::from(&args[1]), &mut llm_output) {
+        2 => match run_file_mode(&PathBuf::from(&args[1]), &mut llm_output, &mut aliases) {
             Ok(_) => (),
             Err(e) => eprintln!("Error: {}", e),
         },
@@ -74,7 +75,7 @@ fn main() -> rustyline::Result<()> {
     Ok(())
 }
 
-fn interactive_mode(llm_output: &mut String) -> Result<(), Box<dyn std::error::Error>> {
+fn interactive_mode(llm_output: &mut String, aliases: &mut HashMap<String, String>) -> Result<(), Box<dyn std::error::Error>> {
     // Setup readline
     let mut rl = Editor::<ShellHelper, rustyline::history::DefaultHistory>::new()?;
     let history = home_dir().unwrap().join(".aish_history");
@@ -92,7 +93,9 @@ fn interactive_mode(llm_output: &mut String) -> Result<(), Box<dyn std::error::E
             Ok(line) => {
                 let _ = rl.add_history_entry(line.as_str());
                 debug!("Added input to history");
-                execute_commands(vec![line.to_string()], llm_output);
+
+                let expanded_buffer = expand_aliases(aliases, &line);
+                execute_commands(vec![expanded_buffer], llm_output, aliases);
 
                 if let Some(helper) = rl.helper_mut() {
                     helper.suggestion = llm_output.clone();
@@ -110,13 +113,13 @@ fn interactive_mode(llm_output: &mut String) -> Result<(), Box<dyn std::error::E
     Ok(())
 }
 
-fn run_file_mode(file_path: &PathBuf, llm_output: &mut String) -> Result<(), std::io::Error> {
+fn run_file_mode(file_path: &PathBuf, llm_output: &mut String, aliases: &mut HashMap<String, String>) -> Result<(), std::io::Error> {
     let commands = read_file(file_path)?;
-    execute_commands(commands, llm_output);
+    execute_commands(commands, llm_output, aliases);
     Ok(())
 }
 
-fn execute_commands(commands: Vec<String>, llm_output: &mut String) {
+fn execute_commands(commands: Vec<String>, llm_output: &mut String, aliases: &mut HashMap<String, String>) {
     for command in commands {
         debug!("Executing command: {}", command);
         let tokenized = match parse(command) {
@@ -127,7 +130,7 @@ fn execute_commands(commands: Vec<String>, llm_output: &mut String) {
             }
         };
         debug!("tokenized: {:?}", tokenized);
-        match tokenized.run() {
+        match tokenized.run(aliases) {
             Ok(s) => {
                 if let Some(stripped) = s.strip_prefix("COMMAND: ") {
                     *llm_output = stripped.to_string();
@@ -162,4 +165,22 @@ fn aishrc_path() -> Result<PathBuf, std::io::Error> {
     ))?;
     let aishrc_path: PathBuf = home.join(".aishrc");
     Ok(aishrc_path)
+}
+
+fn expand_aliases(aliases: &HashMap<String, String>, buffer: &str) -> String {
+    let words: Vec<&str> = buffer.split_whitespace().collect();
+    if words.is_empty() {
+        return buffer.to_string();
+    }
+
+    let first_word = words[0];
+    if let Some(alias_expansion) = aliases.get(first_word) {
+        // Prevent infinite recursion by not expanding the same alias twice
+        if alias_expansion.split_whitespace().next() != Some(first_word) {
+            let expanded = format!("{} {}", alias_expansion, words[1..].join(" "));
+            return expand_aliases(aliases, &expanded);
+        }
+    }
+
+    buffer.to_string()
 }
