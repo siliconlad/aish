@@ -6,6 +6,7 @@ pub mod parsing;
 pub mod pipeline;
 pub mod redirect;
 pub mod sequence;
+pub mod suggestions;
 pub mod token;
 pub mod traits;
 
@@ -13,11 +14,12 @@ pub mod traits;
 extern crate log;
 extern crate simplelog;
 
+use crate::suggestions::ShellHelper;
 use crate::traits::Runnable;
 use home::home_dir;
 use parsing::parse;
 use rustyline::error::ReadlineError;
-use rustyline::DefaultEditor;
+use rustyline::Editor;
 use simplelog::{Config, LevelFilter, WriteLogger};
 use std::env;
 use std::fs::File;
@@ -39,10 +41,12 @@ fn main() -> rustyline::Result<()> {
     // Get args
     let args: Vec<String> = env::args().collect();
 
+    let mut llm_output = String::new();
+
     // Run aishrc file if it exists
     let aishrc = aishrc_path()?;
     if aishrc.exists() {
-        match run_file_mode(&aishrc) {
+        match run_file_mode(&aishrc, &mut llm_output) {
             Ok(_) => (),
             Err(e) => {
                 eprintln!("Error: {}", e);
@@ -55,11 +59,11 @@ fn main() -> rustyline::Result<()> {
 
     // Run in interactive mode if no args
     match args.len() {
-        1 => match interactive_mode() {
+        1 => match interactive_mode(&mut llm_output) {
             Ok(_) => (),
             Err(e) => eprintln!("Error: {}", e),
         },
-        2 => match run_file_mode(&PathBuf::from(&args[1])) {
+        2 => match run_file_mode(&PathBuf::from(&args[1]), &mut llm_output) {
             Ok(_) => (),
             Err(e) => eprintln!("Error: {}", e),
         },
@@ -70,18 +74,29 @@ fn main() -> rustyline::Result<()> {
     Ok(())
 }
 
-fn interactive_mode() -> Result<(), Box<dyn std::error::Error>> {
+fn interactive_mode(llm_output: &mut String) -> Result<(), Box<dyn std::error::Error>> {
     // Setup readline
-    let mut rl = DefaultEditor::new()?;
+    let mut rl = Editor::<ShellHelper, rustyline::history::DefaultHistory>::new()?;
     let history = home_dir().unwrap().join(".aish_history");
     let _ = rl.load_history(history.as_path());
+
+    let helper = ShellHelper {
+        suggestion: String::new(),
+    };
+    rl.set_helper(Some(helper));
+
     loop {
         let readline = rl.readline("> ");
-        let buffer = match readline {
+
+        match readline {
             Ok(line) => {
                 let _ = rl.add_history_entry(line.as_str());
                 debug!("Added input to history");
-                line
+                execute_commands(vec![line.to_string()], llm_output);
+
+                if let Some(helper) = rl.helper_mut() {
+                    helper.suggestion = llm_output.clone();
+                }
             }
             Err(ReadlineError::Interrupted) => break,
             Err(ReadlineError::Eof) => break,
@@ -90,20 +105,18 @@ fn interactive_mode() -> Result<(), Box<dyn std::error::Error>> {
                 break;
             }
         };
-
-        execute_commands(vec![buffer]);
     }
     let _ = rl.save_history(history.as_path());
     Ok(())
 }
 
-fn run_file_mode(file_path: &PathBuf) -> Result<(), std::io::Error> {
+fn run_file_mode(file_path: &PathBuf, llm_output: &mut String) -> Result<(), std::io::Error> {
     let commands = read_file(file_path)?;
-    execute_commands(commands);
+    execute_commands(commands, llm_output);
     Ok(())
 }
 
-fn execute_commands(commands: Vec<String>) {
+fn execute_commands(commands: Vec<String>, llm_output: &mut String) {
     for command in commands {
         debug!("Executing command: {}", command);
         let tokenized = match parse(command) {
@@ -113,10 +126,16 @@ fn execute_commands(commands: Vec<String>) {
                 continue;
             }
         };
+        debug!("tokenized: {:?}", tokenized);
         match tokenized.run() {
             Ok(s) => {
-                if !s.is_empty() {
-                    println!("{}", s)
+                if let Some(stripped) = s.strip_prefix("COMMAND: ") {
+                    *llm_output = stripped.to_string();
+                } else if !s.is_empty() {
+                    println!("{}", s);
+                    llm_output.clear();
+                } else {
+                    llm_output.clear();
                 }
             }
             Err(e) => eprintln!("Error in command: {}", e),
