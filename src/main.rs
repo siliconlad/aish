@@ -13,7 +13,6 @@ pub mod traits;
 extern crate log;
 extern crate simplelog;
 
-use crate::traits::Runnable;
 use home::home_dir;
 use parsing::parse;
 use rustyline::error::ReadlineError;
@@ -106,19 +105,8 @@ fn run_file_mode(file_path: &PathBuf) -> Result<(), std::io::Error> {
 fn execute_commands(commands: Vec<String>) {
     for command in commands {
         debug!("Executing command: {}", command);
-        let tokenized = match parse(command) {
-            Ok(tokenized) => tokenized,
-            Err(e) => {
-                eprintln!("Error in command: {}", e);
-                continue;
-            }
-        };
-        match tokenized.run() {
-            Ok(s) => {
-                if !s.is_empty() {
-                    println!("{}", s)
-                }
-            }
+        match parse(command) {
+            Ok(_) => {},
             Err(e) => eprintln!("Error in command: {}", e),
         }
     }
