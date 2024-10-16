@@ -1,12 +1,15 @@
 use crate::errors::RuntimeError;
 use crate::openai_client::OpenAIClient;
 
+use std::collections::HashMap;
 use std::error::Error;
 use std::io::Read;
 use std::process::ChildStdout;
 use tokio::runtime::Runtime;
 
-const BUILTINS: &[&str] = &["cd", "pwd", "exit", "echo", "export", "unset", "llm"];
+const BUILTINS: &[&str] = &[
+    "cd", "pwd", "exit", "echo", "export", "unset", "llm", "alias",
+];
 
 pub fn is_builtin(cmd: &str) -> bool {
     BUILTINS.contains(&cmd)
@@ -16,6 +19,7 @@ pub fn builtin(
     cmd: String,
     args: Vec<String>,
     stdin: Option<ChildStdout>,
+    aliases: &mut HashMap<String, String>,
 ) -> Result<String, Box<dyn Error>> {
     match cmd.as_str() {
         "cd" => cd(args),
@@ -25,6 +29,7 @@ pub fn builtin(
         "export" => export(args),
         "unset" => unset(args),
         "llm" => llm(args, stdin),
+        "alias" => alias(args, aliases),
         _ => Err(format!("{}: command not found", cmd).into()),
     }
 }
@@ -119,4 +124,35 @@ pub fn llm(args: Vec<String>, stdin: Option<ChildStdout>) -> Result<String, Box<
     println!("{}", output);
 
     Ok("".to_string())
+}
+
+pub fn alias(
+    args: Vec<String>,
+    aliases: &mut HashMap<String, String>,
+) -> Result<String, Box<dyn Error>> {
+    if args.is_empty() {
+        // Print all aliases
+        for (alias, command) in aliases {
+            println!("{}='{}'", alias, command);
+        }
+        Ok("".to_string())
+    } else if args.len() == 1 {
+        let parts: Vec<&str> = args[0].splitn(2, '=').collect();
+        if parts.len() == 2 {
+            let alias = parts[0];
+            let command = parts[1];
+            aliases.insert(alias.to_string(), command.to_string());
+            Ok("".to_string())
+        } else {
+            match aliases.get(&args[0]) {
+                Some(command) => {
+                    println!("{}='{}'", args[0], command);
+                    Ok("".to_string())
+                }
+                None => Err(format!("Alias '{}' not found", args[0]).into()),
+            }
+        }
+    } else {
+        Err("Usage: alias [name[=value] ...]".into())
+    }
 }
