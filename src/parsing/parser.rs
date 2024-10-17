@@ -3,18 +3,17 @@ use crate::errors::SyntaxError;
 use crate::parsing::scanner::Scanner;
 use crate::pipeline::Pipeline;
 use crate::redirect::{InputRedirect, OutputRedirect, OutputRedirectAppend};
-use crate::sequence::{AndSequence, Sequence};
+use crate::sequence::AndSequence;
 use crate::token::{Token, Tokens};
+use crate::traits::Runnable;
 
-pub fn parse_impl(tokens: &mut Scanner<Tokens>) -> Result<Sequence, SyntaxError> {
+pub fn parse_impl(tokens: &mut Scanner<Tokens>) -> Result<(), SyntaxError> {
     // State variables
     let mut in_and_sequence = false;
     let mut in_pipeline = false;
 
-    // Final commands
-    let mut final_commands = Sequence::new();
-    let mut and_sequence = AndSequence::new();
     let mut pipeline = Pipeline::new();
+    let mut and_sequence = AndSequence::new();
 
     loop {
         debug!("Parsing tokens");
@@ -35,17 +34,17 @@ pub fn parse_impl(tokens: &mut Scanner<Tokens>) -> Result<Sequence, SyntaxError>
                     in_and_sequence = false;
                     pipeline.add(command.unpack_cmd());
                     and_sequence.add(Box::new(pipeline.transfer()));
-                    final_commands.add(Box::new(and_sequence.transfer()));
+                    and_sequence.run().map_err(SyntaxError::RuntimeError)?;
                 } else if in_pipeline {
                     in_pipeline = false;
                     pipeline.add(command.unpack_cmd());
-                    final_commands.add(Box::new(pipeline.transfer()));
+                    pipeline.run().map_err(SyntaxError::RuntimeError)?;
                 } else if in_and_sequence {
                     in_and_sequence = false;
                     and_sequence.add(command.unpack_run());
-                    final_commands.add(Box::new(and_sequence.transfer()));
+                    and_sequence.run().map_err(SyntaxError::RuntimeError)?;
                 } else {
-                    final_commands.add(command.unpack_run());
+                    command.unpack_run().run().map_err(SyntaxError::RuntimeError)?;
                 }
             }
             Token::Meta(m) if m == "&&" => {
@@ -71,7 +70,17 @@ pub fn parse_impl(tokens: &mut Scanner<Tokens>) -> Result<Sequence, SyntaxError>
         }
     }
 
-    Ok(final_commands)
+    // Execute any remaining commands
+    if in_pipeline && in_and_sequence {
+        and_sequence.add(Box::new(pipeline));
+        and_sequence.run().map_err(SyntaxError::RuntimeError)?;
+    } else if in_pipeline {
+        pipeline.run().map_err(SyntaxError::RuntimeError)?;
+    } else if in_and_sequence {
+        and_sequence.run().map_err(SyntaxError::RuntimeError)?;
+    }
+
+    Ok(())
 }
 
 fn parse_cmd_impl(tokens: &mut Scanner<Tokens>) -> Result<CommandType, SyntaxError> {

@@ -1,4 +1,5 @@
 use thiserror::Error;
+use std::error::Error;
 
 #[derive(Error, Debug)]
 pub enum SyntaxError {
@@ -12,6 +13,8 @@ pub enum SyntaxError {
     InternalError,
     #[error("Invalid OPENAI_API_KEY: {0}")]
     InvalidOpenAIKey(String),
+    #[error("Runtime error: {0}")]
+    RuntimeError(#[from] Box<dyn Error>),
 }
 
 #[derive(Error, Debug)]
