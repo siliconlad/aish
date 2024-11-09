@@ -41,12 +41,10 @@ fn main() -> rustyline::Result<()> {
     // Get args
     let args: Vec<String> = env::args().collect();
 
-    let mut llm_output = String::new();
-
     // Run aishrc file if it exists
     let aishrc = aishrc_path()?;
     if aishrc.exists() {
-        match run_file_mode(&aishrc, &mut llm_output) {
+        match run_file_mode(&aishrc) {
             Ok(_) => (),
             Err(e) => {
                 eprintln!("Error: {}", e);
@@ -59,11 +57,11 @@ fn main() -> rustyline::Result<()> {
 
     // Run in interactive mode if no args
     match args.len() {
-        1 => match interactive_mode(&mut llm_output) {
+        1 => match interactive_mode() {
             Ok(_) => (),
             Err(e) => eprintln!("Error: {}", e),
         },
-        2 => match run_file_mode(&PathBuf::from(&args[1]), &mut llm_output) {
+        2 => match run_file_mode(&PathBuf::from(&args[1])) {
             Ok(_) => (),
             Err(e) => eprintln!("Error: {}", e),
         },
@@ -74,7 +72,7 @@ fn main() -> rustyline::Result<()> {
     Ok(())
 }
 
-fn interactive_mode(llm_output: &mut String) -> Result<(), Box<dyn std::error::Error>> {
+fn interactive_mode() -> Result<(), Box<dyn std::error::Error>> {
     // Setup readline
     let mut rl = Editor::<ShellHelper, rustyline::history::DefaultHistory>::new()?;
     let history = home_dir().unwrap().join(".aish_history");
@@ -92,10 +90,10 @@ fn interactive_mode(llm_output: &mut String) -> Result<(), Box<dyn std::error::E
             Ok(line) => {
                 let _ = rl.add_history_entry(line.as_str());
                 debug!("Added input to history");
-                execute_commands(vec![line.to_string()], llm_output);
+                let output = execute_commands(vec![line.to_string()]);
 
                 if let Some(helper) = rl.helper_mut() {
-                    helper.suggestion = llm_output.clone();
+                    helper.suggestion = output.clone();
                 }
             }
             Err(ReadlineError::Interrupted) => break,
@@ -110,13 +108,14 @@ fn interactive_mode(llm_output: &mut String) -> Result<(), Box<dyn std::error::E
     Ok(())
 }
 
-fn run_file_mode(file_path: &PathBuf, llm_output: &mut String) -> Result<(), std::io::Error> {
+fn run_file_mode(file_path: &PathBuf) -> Result<(), std::io::Error> {
     let commands = read_file(file_path)?;
-    execute_commands(commands, llm_output);
+    execute_commands(commands);
     Ok(())
 }
 
-fn execute_commands(commands: Vec<String>, llm_output: &mut String) {
+fn execute_commands(commands: Vec<String>) -> String {
+    let mut output = String::new();
     for command in commands {
         debug!("Executing command: {}", command);
         let tokenized = match parse(command) {
@@ -130,17 +129,18 @@ fn execute_commands(commands: Vec<String>, llm_output: &mut String) {
         match tokenized.run() {
             Ok(s) => {
                 if let Some(stripped) = s.strip_prefix("COMMAND: ") {
-                    *llm_output = stripped.to_string();
+                    output = stripped.to_string();
                 } else if !s.is_empty() {
                     println!("{}", s);
-                    llm_output.clear();
+                    output.clear();
                 } else {
-                    llm_output.clear();
+                    output.clear();
                 }
             }
             Err(e) => eprintln!("Error in command: {}", e),
         }
     }
+    output
 }
 
 fn read_file(file_path: &PathBuf) -> Result<Vec<String>, std::io::Error> {

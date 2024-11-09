@@ -204,12 +204,11 @@ impl Runnable for InputRedirect {
         let input = child.stdout.take().unwrap();
 
         let stdout = self.commands[0].pipe(Some(input))?;
+        let mut output = String::new();
         if let Some(mut stdout) = stdout {
-            let mut output = String::new();
             stdout.read_to_string(&mut output)?;
-            println!("{}", output.trim_end());
         }
-        Ok("".to_string())
+        Ok(output.trim_end().to_string())
     }
 }
 

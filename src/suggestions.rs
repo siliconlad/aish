@@ -18,7 +18,7 @@ impl Hinter for ShellHelper {
     type Hint = String;
 
     fn hint(&self, line: &str, pos: usize, _ctx: &Context<'_>) -> Option<String> {
-        if pos == line.len() && !self.suggestion.is_empty() && line.len() < self.suggestion.len() {
+        if pos == line.len() && !self.suggestion.is_empty() && self.suggestion.starts_with(line) {
             Some(self.suggestion[line.len()..].to_owned())
         } else {
             None
