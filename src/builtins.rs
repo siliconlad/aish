@@ -1,22 +1,14 @@
 use crate::errors::RuntimeError;
-use crate::openai_client::OpenAIClient;
 
 use std::error::Error;
-use std::io::Read;
-use std::process::ChildStdout;
-use tokio::runtime::Runtime;
 
-const BUILTINS: &[&str] = &["cd", "pwd", "exit", "echo", "export", "unset", "llm"];
+const BUILTINS: &[&str] = &["cd", "pwd", "exit", "echo", "export", "unset"];
 
 pub fn is_builtin(cmd: &str) -> bool {
     BUILTINS.contains(&cmd)
 }
 
-pub fn builtin(
-    cmd: String,
-    args: Vec<String>,
-    stdin: Option<ChildStdout>,
-) -> Result<String, Box<dyn Error>> {
+pub fn builtin(cmd: String, args: Vec<String>) -> Result<String, Box<dyn Error>> {
     match cmd.as_str() {
         "cd" => cd(args),
         "pwd" => pwd(),
@@ -24,7 +16,6 @@ pub fn builtin(
         "echo" => echo(args),
         "export" => export(args),
         "unset" => unset(args),
-        "llm" => llm(args, stdin),
         _ => Err(format!("{}: command not found", cmd).into()),
     }
 }
@@ -88,35 +79,5 @@ pub fn unset(args: Vec<String>) -> Result<String, Box<dyn Error>> {
     for arg in args {
         std::env::remove_var(arg);
     }
-    Ok("".to_string())
-}
-
-pub fn llm(args: Vec<String>, stdin: Option<ChildStdout>) -> Result<String, Box<dyn Error>> {
-    let openai_client = OpenAIClient::new(None)?;
-    let prompt = if args.is_empty() {
-        "".to_string()
-    } else {
-        args.first().unwrap().clone()
-    };
-    let mut input = String::new();
-    if let Some(mut stdin) = stdin {
-        stdin.read_to_string(&mut input)?;
-    }
-
-    // TODO: do something more sophisticated
-    debug!("Received input: {:?}", input);
-    let context = if !input.is_empty() {
-        format!("{}: {}", prompt, input)
-    } else {
-        prompt.to_string()
-    };
-    debug!("Context: {}", context);
-
-    // TODO: make configurable
-    let runtime = Runtime::new().unwrap();
-    let output = runtime.block_on(openai_client.generate_text(&context, 100))?;
-    debug!("Generated response: {}", output);
-    println!("{}", output);
-
     Ok("".to_string())
 }

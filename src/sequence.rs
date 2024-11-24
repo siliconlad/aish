@@ -44,13 +44,16 @@ impl Default for Sequence {
 
 impl Runnable for Sequence {
     fn run(&self) -> Result<String, Box<dyn Error>> {
+        let mut prev_output: Option<String> = None;
         for command in &self.commands {
             match command.run() {
-                Ok(_) => continue,
-                Err(e) => eprintln!("{}", e),
+                Ok(output) => {
+                    prev_output = Some(output);
+                }
+                Err(e) => return Err(e),
             }
         }
-        Ok("".to_string())
+        Ok(prev_output.unwrap_or_default())
     }
 }
 
@@ -116,10 +119,16 @@ impl Default for AndSequence {
 
 impl Runnable for AndSequence {
     fn run(&self) -> Result<String, Box<dyn Error>> {
+        let mut prev_output: Option<String> = None;
         for command in &self.commands {
-            command.run()?; // ? will propagate error
+            match command.run() {
+                Ok(output) => {
+                    prev_output = Some(output);
+                }
+                Err(e) => return Err(e),
+            }
         }
-        Ok("".to_string())
+        Ok(prev_output.unwrap_or_default())
     }
 }
 
